@@ -1,0 +1,2159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Smart Water Tank Dashboard - IoT Simulator</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Google Fonts for professional typography -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['Share Tech Mono', 'monospace'],
+          },
+          colors: {
+            'dashboard-bg': '#fcf3e8',
+            'sidebar-bg': '#f8ead8',
+            'card-bg': '#ffffff',
+            'accent-brown': '#7c4d3a',
+            'accent-orange': '#d97706',
+            'status-green': '#22c55e',
+            'status-red': '#ef4444',
+            'status-blue': '#3b82f6',
+            'text-primary': '#4a3728',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #fcf3e8;
+      color: #4a3728;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #7c4d3a;
+      border-radius: 10px;
+    }
+
+    /* Simple animation for water level */
+    @keyframes wave {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    .water-wave {
+      animation: wave 3s linear infinite;
+    }
+
+    /* Neon glow effects */
+    .glow-lcd {
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.25);
+      text-shadow: 0 0 5px rgba(34, 211, 238, 0.7);
+    }
+
+    /* Device animations */
+    @keyframes spin-slow {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .animate-spin-slow {
+      animation: spin-slow 2s linear infinite;
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        opacity: 0.8;
+        box-shadow: 0 0 5px rgba(234, 179, 8, 0.4);
+      }
+
+      50% {
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(234, 179, 8, 0.8);
+      }
+    }
+
+    .bulb-glow {
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
+
+    @keyframes flow {
+      0% {
+        stroke-dashoffset: 20;
+      }
+
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .pipe-flow {
+      stroke-dasharray: 6 4;
+      animation: flow 1s linear infinite;
+    }
+
+    @keyframes shake-tiny {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      25% {
+        transform: translate(0.5px, 0.5px);
+      }
+
+      50% {
+        transform: translate(-0.5px, 0.5px);
+      }
+
+      75% {
+        transform: translate(0.5px, -0.5px);
+      }
+    }
+
+    .shake-active {
+      animation: shake-tiny 0.1s linear infinite;
+    }
+  </style>
+</head>
+
+<body class="font-sans antialiased selection:bg-accent-brown selection:text-white">
+  <div class="flex min-h-screen">
+
+    <!-- BEGIN: Sidebar -->
+    <aside class="w-64 bg-sidebar-bg flex flex-col border-r border-orange-100/50 sticky top-0 h-screen"
+      data-purpose="main-navigation">
+      <div class="p-8 flex flex-col items-center">
+        <!-- Logo Section -->
+        <div
+          class="w-20 h-20 bg-accent-brown/10 rounded-2xl flex items-center justify-center mb-4 transition hover:scale-105 duration-300">
+          <svg class="w-12 h-12 text-accent-brown animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.675.337a8 8 0 01-8.154-.193M4.744 10.044a3 3 0 01.82.312l5.474 2.737a1 1 0 00.895 0l5.474-2.737a3 3 0 01.82-.312m-12.608 0a3 3 0 00-1.124 1.258m12.608-1.258a3 3 0 011.124 1.258M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707.707"
+              stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold text-accent-brown tracking-wider">SMART TANK</h1>
+        <p class="text-xs tracking-widest text-accent-brown/60 mb-6">ESP32 SYSTEM</p>
+
+        <!-- Nav Links -->
+        <nav class="w-full space-y-1">
+          <a class="flex items-center space-x-3 bg-accent-brown text-white p-3 rounded-xl transition-all duration-200"
+            href="#">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span class="font-medium text-sm">Dashboard</span>
+          </a>
+          <a class="flex items-center space-x-3 text-accent-brown/70 hover:bg-white/50 p-3 rounded-xl transition-all"
+            href="#water-monitoring">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.675.337a8 8 0 01-8.154-.193M4.744 10.044a3 3 0 01.82.312l5.474 2.737a1 1 0 00.895 0l5.474-2.737a3 3 0 01.82-.312m-12.608 0a3 3 0 00-1.124 1.258m12.608-1.258a3 3 0 011.124 1.258M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707.707"
+                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span class="font-medium text-sm">Water Tank</span>
+          </a>
+          <a class="flex items-center space-x-3 text-accent-brown/70 hover:bg-white/50 p-3 rounded-xl transition-all"
+            href="#energy-management">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+              </path>
+            </svg>
+            <span class="font-medium text-sm">Energy Management</span>
+          </a>
+          <a class="flex items-center space-x-3 text-accent-brown/70 hover:bg-white/50 p-3 rounded-xl transition-all"
+            href="#device-grid">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
+                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span class="font-medium text-sm">Device Control</span>
+          </a>
+          <a class="flex items-center space-x-3 text-accent-brown/70 hover:bg-white/50 p-3 rounded-xl transition-all"
+            href="#telegram-log">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span class="font-medium text-sm">Telegram Bot</span>
+          </a>
+          <a class="flex items-center space-x-3 text-accent-brown/70 hover:bg-white/50 p-3 rounded-xl transition-all"
+            href="#system-flow">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span class="font-medium text-sm">System Flow</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="mt-auto p-8 text-center bg-orange-100/20 border-t border-orange-100/50">
+        <div class="mb-2">
+          <svg class="w-8 h-8 text-accent-orange mx-auto animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+            <path clip-rule="evenodd"
+              d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+              fill-rule="evenodd"></path>
+          </svg>
+        </div>
+        <p class="text-xs font-semibold text-accent-brown/80">Keep Your Tank Full And Your System Smart!</p>
+      </div>
+    </aside>
+    <!-- END: Sidebar -->
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-6 overflow-y-auto max-h-screen">
+      <!-- BEGIN: Header -->
+      <header
+        class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-4 border-b border-orange-100/50"
+        data-purpose="top-header">
+        <div>
+          <h2 class="text-3xl font-extrabold text-accent-brown tracking-tight">Smart Water Tank Dashboard</h2>
+          <p class="text-accent-brown/60 text-sm">ESP32 Load-Shedding & Tank Monitoring Simulator</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4 mt-4 md:mt-0">
+          <!-- ESP Status -->
+          <div class="flex items-center bg-card-bg px-4 py-2 rounded-xl shadow-sm border border-orange-100/80">
+            <div class="p-2 bg-orange-50 rounded-lg mr-3 text-accent-brown">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[9px] uppercase font-bold text-gray-400">ESP32 Status</p>
+              <div class="flex items-center space-x-1.5">
+                <span id="esp-status-text" class="text-xs font-bold">Connected</span>
+                <span id="esp-status-dot" class="w-2 h-2 rounded-full bg-status-green animate-ping"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Telegram Status -->
+          <div class="flex items-center bg-card-bg px-4 py-2 rounded-xl shadow-sm border border-orange-100/80">
+            <div class="p-2 bg-blue-50 rounded-lg mr-3 text-blue-500">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.13-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .33z">
+                </path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[9px] uppercase font-bold text-gray-400">Telegram Bot</p>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-xs font-bold">Active</span>
+                <span class="w-2 h-2 rounded-full bg-status-green"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clock -->
+          <div class="flex items-center bg-card-bg px-4 py-2 rounded-xl shadow-sm border border-orange-100/80">
+            <div class="p-2 bg-gray-50 rounded-lg mr-3 text-gray-500">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"
+                  stroke-width="2"></path>
+              </svg>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-bold" id="dashboard-clock">10.24.16</p>
+              <p id="dashboard-date" class="text-[9px] font-semibold text-gray-400 uppercase">Rabu, 17 Juni 2026</p>
+            </div>
+          </div>
+        </div>
+      </header>
+      <!-- END: Header -->
+
+      <!-- Main Dashboard Grid -->
+      <div class="grid grid-cols-12 gap-6 mb-6">
+
+        <!-- BEGIN: Water Tank Monitoring -->
+        <section id="water-monitoring"
+          class="col-span-12 lg:col-span-5 bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 flex flex-col justify-between"
+          data-purpose="water-monitoring">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+                <h3 class="font-bold text-base uppercase tracking-wide">1. Water Tank Monitor</h3>
+              </div>
+              <!-- Dynamic Alarm Status Indicator -->
+              <span id="tank-alarm"
+                class="hidden px-2 py-0.5 text-[10px] font-black tracking-wider bg-status-red text-white rounded-md animate-pulse">ALARM
+                SENSOR ERROR!</span>
+            </div>
+
+            <div class="flex items-start justify-between">
+              <!-- Tank Visual Wrapper -->
+              <div
+                class="relative w-40 h-56 border-4 border-gray-300 rounded-[1.8rem] overflow-hidden bg-gray-50 flex-shrink-0 shadow-inner">
+                <!-- Water Level representation -->
+                <div id="tank-water-fill"
+                  class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-500"
+                  style="height: 75%;">
+                  <div
+                    class="water-wave absolute top-0 left-0 w-[200%] h-4 bg-blue-300/40 opacity-50 -translate-y-full">
+                  </div>
+                </div>
+
+                <!-- Inlet Pipe Water Stream -->
+                <svg id="water-stream" class="hidden absolute top-0 right-4 w-6 h-full text-blue-300" fill="none"
+                  viewBox="0 0 24 100">
+                  <line x1="12" y1="0" x2="12" y2="100" stroke="currentColor" stroke-width="4" stroke-dasharray="6 4"
+                    class="pipe-flow"></line>
+                </svg>
+
+                <!-- Measurement Lines -->
+                <div
+                  class="absolute inset-0 flex flex-col justify-between py-3 px-2 text-[9px] font-extrabold text-gray-400/80 pointer-events-none select-none">
+                  <span>100% —</span>
+                  <span>75% —</span>
+                  <span>50% —</span>
+                  <span>25% —</span>
+                  <span>0% —</span>
+                </div>
+              </div>
+
+              <!-- Data Panel -->
+              <div class="flex-1 ml-6 space-y-4">
+                <div class="bg-orange-50/40 p-4 rounded-2xl border border-orange-100/30">
+                  <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Water Volume</p>
+                  <div class="flex items-baseline space-x-0.5">
+                    <span id="water-pct-text" class="text-5xl font-black text-accent-brown tracking-tighter">75</span>
+                    <span class="text-xl font-bold text-accent-brown">%</span>
+                  </div>
+                  <div id="water-status-badge"
+                    class="mt-2 flex items-center bg-status-green/10 text-status-green px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path clip-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        fill-rule="evenodd"></path>
+                    </svg>
+                    NORMAL
+                  </div>
+                </div>
+
+                <div class="space-y-2.5">
+                  <div
+                    class="flex items-center space-x-3 bg-gray-50/50 border border-gray-100 p-2.5 rounded-xl shadow-xs">
+                    <div class="p-2 bg-blue-50 rounded-lg text-blue-500">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round"
+                          stroke-linejoin="round" stroke-width="2"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="text-[9px] font-bold text-gray-400 uppercase">Ultrasonic Distance</p>
+                      <p id="ultrasonic-dist" class="text-xs font-extrabold text-accent-brown">5.0 cm</p>
+                    </div>
+                  </div>
+
+                  <div
+                    class="flex items-center space-x-3 bg-gray-50/50 border border-gray-100 p-2.5 rounded-xl shadow-xs">
+                    <div id="sensor-status-icon" class="p-2 bg-green-50 rounded-lg text-green-500">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                          stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="text-[9px] font-bold text-gray-400 uppercase">Sensor Condition</p>
+                      <p id="sensor-status-text" class="text-xs font-bold text-status-green">ONLINE</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Retro Physical LCD Display Mockup -->
+          <div class="mt-6">
+            <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Simulated I2C LCD
+              (20x4) Screen</div>
+            <div
+              class="bg-[#002b36] border-4 border-[#073642] p-4 rounded-xl shadow-inner glow-lcd text-cyan-400 font-mono text-[13px] leading-relaxed relative overflow-hidden h-28 flex flex-col justify-center">
+              <!-- Glare/Glass Effect Overlay -->
+              <div
+                class="absolute inset-0 bg-gradient-to-tr from-transparent via-cyan-400/2 to-cyan-400/5 pointer-events-none">
+              </div>
+              <!-- Horizontal Scanning Line -->
+              <div class="absolute inset-x-0 h-[1px] bg-cyan-400/5 top-0 pointer-events-none animate-pulse"></div>
+              <div id="lcd-line-1" class="uppercase">WATER LEVEL: 75.0%</div>
+              <div id="lcd-line-2" class="uppercase">PUMP STATE: OFF</div>
+              <div id="lcd-line-3" class="uppercase">LOAD: 18V (SAFE)</div>
+              <div id="lcd-line-4" class="uppercase">SYS: MONITORING MODE</div>
+            </div>
+          </div>
+        </section>
+        <!-- END: Water Tank Monitoring -->
+
+        <!-- BEGIN: Pump Control & Simulation panel -->
+        <section
+          class="col-span-12 lg:col-span-3 bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 flex flex-col justify-between"
+          data-purpose="pump-control">
+          <div>
+            <div class="flex items-center space-x-2 mb-4">
+              <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+              <h3 class="font-bold text-base uppercase tracking-wide">2. Pump & Sim Control</h3>
+            </div>
+
+            <!-- Pump Relay Visual Badge -->
+            <div
+              class="flex flex-col items-center justify-center py-4 bg-gray-50/50 rounded-2xl border border-gray-100 shadow-inner mb-4">
+              <div id="pump-visual-container"
+                class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center transition-all duration-300 relative">
+                <svg class="w-12 h-12 text-accent-brown opacity-60" fill="none" stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+              </div>
+
+              <p class="text-[10px] font-bold text-gray-400 uppercase mt-2">Pump Relay Status</p>
+              <p id="pump-status-badge" class="text-xl font-black text-status-red transition-all duration-300">OFF</p>
+
+              <div id="pump-subtext" class="flex items-center space-x-1 mt-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-status-red" id="pump-dot"></span>
+                <span class="text-[9px] font-bold text-gray-400" id="pump-status-txt">Pump Stopped</span>
+              </div>
+            </div>
+
+            <!-- System Mode Indicator -->
+            <div class="bg-orange-50/40 border border-orange-100/30 p-3.5 rounded-2xl flex items-center space-x-3 mb-4">
+              <div class="p-2.5 bg-white rounded-xl shadow-xs text-accent-brown">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Current Mode</p>
+                <p id="system-mode-text" class="text-xs font-bold text-accent-brown">Monitoring Mode</p>
+              </div>
+            </div>
+
+            <!-- Simulation controls -->
+            <div class="border-t border-gray-100 pt-4 space-y-3.5">
+              <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Simulator Controls</h4>
+
+              <!-- Play/Pause & Reset buttons -->
+              <div class="flex items-center gap-2">
+                <button id="btn-toggle-sim"
+                  class="flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95">
+                  <svg class="w-3.5 h-3.5" id="sim-play-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clip-rule="evenodd"></path>
+                  </svg>
+                  <span id="sim-btn-text">Pause Sim</span>
+                </button>
+                <button id="btn-reset-hw"
+                  class="bg-gray-100 hover:bg-gray-200/80 text-gray-700 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 active:scale-95">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  </svg>
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              <!-- Water Level Slider Override -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label for="override-water-slider" class="text-[9px] font-bold text-gray-400 uppercase">Override Water
+                    Level</label>
+                  <span id="override-pct-label" class="text-[10px] font-bold text-accent-brown">75%</span>
+                </div>
+                <input type="range" id="override-water-slider" min="0" max="100" value="75"
+                  class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-orange focus:outline-none">
+              </div>
+
+              <!-- Speed Selector slider -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label for="sim-speed-slider" class="text-[9px] font-bold text-gray-400 uppercase">Sim Speed</label>
+                  <span id="sim-speed-label" class="text-[10px] font-bold text-accent-brown">2x</span>
+                </div>
+                <input type="range" id="sim-speed-slider" min="1" max="5" value="2"
+                  class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-brown focus:outline-none">
+              </div>
+
+              <!-- Sensor fault trigger -->
+              <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="sensor-fault-toggle"
+                  class="w-4 h-4 rounded text-status-red border-gray-300 focus:ring-status-red">
+                <span class="text-xs font-medium text-gray-500">Simulate Sensor Fault</span>
+              </label>
+            </div>
+          </div>
+        </section>
+        <!-- END: Pump Control -->
+
+        <!-- BEGIN: Energy Management -->
+        <section id="energy-management"
+          class="col-span-12 lg:col-span-4 bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 flex flex-col justify-between"
+          data-purpose="energy-management">
+          <div>
+            <div class="flex items-center space-x-2 mb-6">
+              <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+              <h3 class="font-bold text-base uppercase tracking-wide">3. Energy Management</h3>
+            </div>
+
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Load Current</p>
+                <div class="flex items-baseline space-x-0.5">
+                  <span id="total-load-text" class="text-5xl font-black text-accent-brown tracking-tighter">18</span>
+                  <span class="text-xl font-bold text-accent-brown">V</span>
+                </div>
+              </div>
+
+              <!-- Dynamic Gauge Visual representation -->
+              <div class="relative w-36 h-20 flex-shrink-0 select-none">
+                <svg class="w-full h-full transform rotate-180" viewBox="0 0 100 50">
+                  <!-- Gauge outline arc -->
+                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#f1f5f9" stroke-linecap="round"
+                    stroke-width="10"></path>
+
+                  <!-- Limit 25V mark (at 83.3% angle) -->
+                  <!-- The 25V tick arc, colored in light red -->
+                  <path d="M 10 50 A 40 40 0 0 1 76.6 20" fill="none" stroke="#fbcfe8" stroke-linecap="round"
+                    stroke-width="10" stroke-dasharray="125.6" stroke-dashoffset="30"></path>
+
+                  <!-- Dynamic active load arc -->
+                  <path id="gauge-load-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#22c55e"
+                    stroke-linecap="round" stroke-width="10" stroke-dasharray="125.6" stroke-dashoffset="75.36"
+                    class="transition-all duration-500"></path>
+
+                  <!-- Gauge needle -->
+                  <line x1="50" y1="50" x2="50" y2="14" stroke="#4a3728" stroke-width="3" stroke-linecap="round"
+                    id="gauge-needle" class="origin-bottom transition-transform duration-500"
+                    style="transform: rotate(18deg);"></line>
+                </svg>
+
+                <!-- Indicator label -->
+                <div id="energy-status-badge"
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 bg-status-green/10 text-status-green px-3 py-0.5 rounded-full text-[10px] font-black border border-status-green/20 transition-all duration-300">
+                  SAFE
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Device list with switches and power ratings -->
+            <div class="space-y-2.5 custom-scrollbar overflow-y-auto max-h-[220px] pr-1">
+              <!-- Device Item: OLED Display -->
+              <div id="device-item-oled"
+                class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent transition-all">
+                <div class="flex items-center space-x-2.5">
+                  <div class="p-2 bg-white rounded-lg shadow-xs text-accent-brown" id="device-icon-oled">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-gray-800 block leading-tight">OLED Display (TV)</span>
+                    <span class="text-[9px] font-medium text-gray-400">Prio 1 • 5V Load</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span id="device-status-oled" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <input type="checkbox" id="toggle-oled" checked
+                    class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
+                </div>
+              </div>
+
+              <!-- Device Item: Cooling Fan -->
+              <div id="device-item-fan"
+                class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent transition-all">
+                <div class="flex items-center space-x-2.5">
+                  <div class="p-2 bg-white rounded-lg shadow-xs text-accent-brown" id="device-icon-fan">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707.707"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-gray-800 block leading-tight">Cooling Fan (Air Circ)</span>
+                    <span class="text-[9px] font-medium text-gray-400">Prio 2 • 7V Load</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span id="device-status-fan" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <input type="checkbox" id="toggle-fan" checked
+                    class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
+                </div>
+              </div>
+
+              <!-- Device Item: LED 1 -->
+              <div id="device-item-led1"
+                class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent transition-all">
+                <div class="flex items-center space-x-2.5">
+                  <div class="p-2 bg-white rounded-lg shadow-xs text-accent-brown" id="device-icon-led1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-gray-800 block leading-tight">LED Room 1</span>
+                    <span class="text-[9px] font-medium text-gray-400">Prio 3 • 3V Load</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span id="device-status-led1" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <input type="checkbox" id="toggle-led1" checked
+                    class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
+                </div>
+              </div>
+
+              <!-- Device Item: LED 2 -->
+              <div id="device-item-led2"
+                class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent transition-all">
+                <div class="flex items-center space-x-2.5">
+                  <div class="p-2 bg-white rounded-lg shadow-xs text-accent-brown" id="device-icon-led2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-gray-800 block leading-tight">LED Room 2</span>
+                    <span class="text-[9px] font-medium text-gray-400">Prio 3 • 3V Load</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span id="device-status-led2" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <input type="checkbox" id="toggle-led2" checked
+                    class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
+                </div>
+              </div>
+
+              <!-- Device Item: Water Pump -->
+              <div id="device-item-pump"
+                class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent transition-all">
+                <div class="flex items-center space-x-2.5">
+                  <div class="p-2 bg-white rounded-lg shadow-xs text-gray-400" id="device-icon-pump">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-gray-400 block leading-tight" id="device-label-pump">Water
+                      Pump</span>
+                    <span class="text-[9px] font-medium text-gray-400">Output • 12V Load</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span id="device-status-pump" class="text-[10px] font-extrabold text-status-red">OFF</span>
+                  <span class="text-xs font-extrabold text-gray-400 w-6 text-right">12 V</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Safety Alert Note box -->
+          <div id="power-alert-box"
+            class="mt-4 p-3 bg-green-50 rounded-2xl flex items-center justify-between border border-green-100 transition-all duration-300">
+            <div class="flex items-center space-x-2.5">
+              <div id="power-alert-icon-container" class="p-2 bg-green-500 rounded-lg text-white">
+                <svg id="power-alert-icon" class="w-4.5 h-4.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path clip-rule="evenodd"
+                    d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 4.946-2.597 9.29-6.518 11.771a1.304 1.304 0 01-1.464 0C6.012 16.29 3.415 11.946 3.415 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    fill-rule="evenodd"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-[9px] font-bold text-gray-400 uppercase">System Power Load</p>
+                <p id="power-alert-title" class="text-xs font-bold text-status-green uppercase">SAFE STATUS</p>
+              </div>
+            </div>
+            <p id="power-alert-desc" class="text-[9px] text-gray-500 max-w-[130px] text-right leading-tight">Total load
+              is safe (<= 25V).</p>
+          </div>
+        </section>
+        <!-- END: Energy Management -->
+
+      </div>
+
+      <!-- BEGIN: Second Row Grid -->
+      <div class="grid grid-cols-12 gap-6 mb-6">
+
+        <!-- BEGIN: Hardware Simulation / Interactive Mockups -->
+        <section id="device-grid"
+          class="col-span-12 lg:col-span-7 bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80"
+          data-purpose="device-grid">
+          <div class="flex items-center space-x-2 mb-4">
+            <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+            <h3 class="font-bold text-base uppercase tracking-wide">4. Physical Hardware Mockup Simulation</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <!-- Mockup: OLED TV Display -->
+            <div
+              class="bg-gray-50/50 p-4 rounded-2xl flex flex-col items-center justify-between border border-gray-100 shadow-sm min-h-[160px]">
+              <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">OLED TV Display (5V)</span>
+              <div id="mock-oled-tv"
+                class="w-28 h-20 bg-slate-900 border-4 border-slate-700 rounded-lg flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 shadow-md">
+                <div class="absolute bottom-0 w-8 h-2 bg-slate-700 mx-auto rounded-t-md"></div>
+                <!-- Simulated Screen Content -->
+                <div id="mock-oled-screen"
+                  class="hidden text-[8px] font-mono text-cyan-400/90 text-center flex-col items-center space-y-0.5">
+                  <svg class="w-5 h-5 text-cyan-400 animate-bounce" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                  <span class="tracking-wide">TELEVISI AKTIF</span>
+                  <span class="opacity-50">CHANNEL 05</span>
+                </div>
+                <div id="mock-oled-screen-off" class="text-[8px] text-gray-600 font-bold uppercase tracking-wider">OFF
+                </div>
+              </div>
+              <div class="flex items-center space-x-1.5 mt-2">
+                <span id="mock-status-dot-oled" class="w-2.5 h-2.5 rounded-full bg-status-green"></span>
+                <span id="mock-status-text-oled" class="text-xs font-bold uppercase">ON</span>
+              </div>
+            </div>
+
+            <!-- Mockup: Cooling Fan -->
+            <div
+              class="bg-gray-50/50 p-4 rounded-2xl flex flex-col items-center justify-between border border-gray-100 shadow-sm min-h-[160px]">
+              <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Cooling Fan (7V)</span>
+              <div
+                class="relative w-20 h-20 flex items-center justify-center bg-white rounded-full border border-gray-200 shadow-inner">
+                <!-- Fan Blades SVG -->
+                <svg id="mock-fan-blades" class="w-16 h-16 text-slate-600 transition-all duration-500"
+                  fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2zm0 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-.7 4.9c-.8.5-1.5 1.2-2 2a8.5 8.5 0 0 1-1.3-4.5 1.5 1.5 0 0 1 1-.4c.9 0 1.7.3 2.3.9c0 .7 0 1.4-.7 2zm-.9-5.1c-.6.6-1.4.9-2.3.9a1.5 1.5 0 0 1-1-1A8.5 8.5 0 0 1 11 6.1c0 1.5-.3 2.7-.9 4.2zm6.2-.2a8.5 8.5 0 0 1 1.3 4.5 1.5 1.5 0 0 1-1 1c-.9 0-1.7-.3-2.3-.9 0-.7 0-1.4.7-2 .8-.5 1.5-1.2 2-2.6zM13 13.9c.6-.6 1.4-.9 2.3-.9a1.5 1.5 0 0 1 1 1A8.5 8.5 0 0 1 13 17.9c0-1.5.3-2.7.9-4z" />
+                </svg>
+              </div>
+              <div class="flex items-center space-x-1.5 mt-2">
+                <span id="mock-status-dot-fan" class="w-2.5 h-2.5 rounded-full bg-status-green"></span>
+                <span id="mock-status-text-fan" class="text-xs font-bold uppercase">ON</span>
+              </div>
+            </div>
+
+            <!-- Mockup: Room Lights (LED 1 & LED 2) -->
+            <div
+              class="bg-gray-50/50 p-4 rounded-2xl flex flex-col items-center justify-between border border-gray-100 shadow-sm min-h-[160px]">
+              <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">LED Room Lights (3V+3V)</span>
+              <div class="flex items-center justify-center space-x-6 h-20 w-full">
+                <!-- LED 1 Bulb -->
+                <div class="flex flex-col items-center space-y-1">
+                  <div id="mock-led-1"
+                    class="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-md bulb-glow transition-all duration-300">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <span class="text-[8px] font-extrabold text-gray-400">LED 1</span>
+                </div>
+
+                <!-- LED 2 Bulb -->
+                <div class="flex flex-col items-center space-y-1">
+                  <div id="mock-led-2"
+                    class="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-md bulb-glow transition-all duration-300">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <span class="text-[8px] font-extrabold text-gray-400">LED 2</span>
+                </div>
+              </div>
+              <div class="flex items-center space-x-1.5 mt-2">
+                <span id="mock-status-dot-led" class="w-2.5 h-2.5 rounded-full bg-status-green"></span>
+                <span id="mock-status-text-led" class="text-xs font-bold uppercase">BOTH ON</span>
+              </div>
+            </div>
+
+            <!-- Mockup: Water Pump (12V) -->
+            <div
+              class="bg-gray-50/50 p-4 rounded-2xl flex flex-col items-center justify-between border border-gray-100 shadow-sm min-h-[160px] md:col-span-1">
+              <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Relay Water Pump (12V)</span>
+              <div id="mock-pump"
+                class="w-16 h-16 rounded-2xl bg-[#f8ead8]/60 border border-orange-100 flex items-center justify-center shadow-sm relative transition-all">
+                <svg class="w-10 h-10 text-accent-brown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+              </div>
+              <div class="flex items-center space-x-1.5 mt-2">
+                <span id="mock-status-dot-pump" class="w-2.5 h-2.5 rounded-full bg-status-red"></span>
+                <span id="mock-status-text-pump" class="text-xs font-bold uppercase text-status-red">OFF</span>
+              </div>
+            </div>
+
+            <!-- Mockup: ESP32 Dev Board -->
+            <div
+              class="bg-slate-900 p-4 rounded-2xl flex flex-col items-center justify-between border border-slate-800 shadow-xl min-h-[160px] md:col-span-2 relative text-slate-300 overflow-hidden">
+              <!-- Simulated microchip lines styling -->
+              <div
+                class="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.9),rgba(15,23,42,0.9)),repeating-linear-gradient(0deg,rgba(0,0,0,0.15) 0px,rgba(0,0,0,0.15) 1px,transparent 1px,transparent 2px)] opacity-20 pointer-events-none">
+              </div>
+              <div
+                class="absolute right-0 top-0 w-24 h-24 border border-dashed border-cyan-500/10 rounded-full -mr-8 -mt-8 animate-spin-slow">
+              </div>
+
+              <span class="text-[9px] font-black text-cyan-400/80 uppercase tracking-widest relative z-10">ESP32 DevKit
+                V1 Board</span>
+
+              <div class="flex items-center justify-center space-x-4 w-full relative z-10">
+                <!-- Physical ESP32 chip visual -->
+                <div
+                  class="w-24 h-16 bg-slate-800 border-2 border-slate-700 rounded-lg flex flex-col items-center justify-center relative p-1 shadow-inner flex-shrink-0">
+                  <!-- Golden pin rows side simulation -->
+                  <div class="absolute -left-1.5 inset-y-2 flex flex-col justify-between h-12 w-1 bg-amber-500/40">
+                  </div>
+                  <div class="absolute -right-1.5 inset-y-2 flex flex-col justify-between h-12 w-1 bg-amber-500/40">
+                  </div>
+                  <!-- Silver shield -->
+                  <div
+                    class="w-16 h-12 bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500 rounded flex flex-col items-center justify-center p-1 text-slate-800 shadow-md">
+                    <span class="text-[8px] font-black tracking-tighter">ESP-WROOM-32</span>
+                    <span class="text-[6px] opacity-70 leading-none">WiFi/BT SoC</span>
+                  </div>
+                </div>
+
+                <!-- Board diagnostics -->
+                <div class="text-[10px] space-y-1.5 font-mono">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-status-red" id="esp32-power-led"></span>
+                    <span>PWR LED: ON</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400" id="esp32-status-led"></span>
+                    <span>GPIO2: ACTIVE</span>
+                  </div>
+                  <div class="flex items-center space-x-2 text-gray-400">
+                    <span class="w-2 h-2 rounded-full bg-status-green" id="esp32-wifi-led"></span>
+                    <span id="esp32-wifi-txt">WIFI: CONNECTED</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="text-[8px] font-mono text-cyan-500/60 uppercase tracking-wide relative z-10 w-full text-center mt-2">
+                System Uptime: <span id="esp-uptime-val" class="font-bold">0m 45s</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+        <!-- END: Hardware Simulation -->
+
+        <!-- BEGIN: Telegram Bot Activity -->
+        <section id="telegram-log"
+          class="col-span-12 lg:col-span-5 bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 flex flex-col justify-between"
+          data-purpose="telegram-log">
+          <div>
+            <div class="flex items-center space-x-2 mb-4">
+              <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+              <h3 class="font-bold text-base uppercase tracking-wide">5. Telegram Bot Activity</h3>
+            </div>
+
+            <!-- Scrollable log window -->
+            <div id="telegram-chat-logs"
+              class="bg-gray-50/70 border border-gray-100/80 rounded-2xl p-4 h-[200px] overflow-y-auto custom-scrollbar flex flex-col space-y-2.5">
+              <!-- Loading indicator/first message -->
+              <div class="flex items-start space-x-2 bg-white p-3 rounded-2xl shadow-xs border border-orange-50/30">
+                <div
+                  class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold font-mono">
+                  🤖
+                </div>
+                <div class="flex-1 text-xs">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-bold text-accent-brown">SmartTank Bot <span
+                        class="bg-blue-100 text-blue-700 text-[8px] px-1 rounded-sm">Bot</span></span>
+                    <span class="text-[9px] text-gray-400" id="tg-init-time">10:25</span>
+                  </div>
+                  <div class="text-gray-600 leading-normal space-y-1">
+                    <p class="font-black flex items-center text-blue-600"><svg class="w-3.5 h-3.5 mr-1" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                      </svg> SYSTEM LOG ACTIVE</p>
+                    <p>ESP32 IoT Node Connected to Telegram server.</p>
+                    <p>Send <span
+                        class="bg-gray-100 text-accent-brown font-mono font-bold px-1 rounded text-[10px]">/status</span>
+                      to check system conditions.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Telegram Interactive command prompt -->
+          <div class="mt-4 border-t border-gray-100 pt-4">
+            <form id="tg-command-form" class="flex gap-2">
+              <div class="relative flex-1">
+                <input type="text" id="tg-command-input" placeholder="Type /status, /help, /devices..."
+                  class="w-full bg-gray-50 border border-gray-200 focus:border-accent-orange focus:ring-1 focus:ring-accent-orange text-xs rounded-xl py-2 px-3 pr-8 placeholder:text-gray-400 font-mono text-gray-700">
+                <span class="absolute right-2.5 top-2.5 text-gray-400 text-xs font-mono select-none">/</span>
+              </div>
+              <button type="submit"
+                class="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2 text-xs font-bold flex items-center justify-center transition-colors shadow-sm active:scale-95">
+                <svg class="w-4 h-4 transform rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z">
+                  </path>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </section>
+        <!-- END: Telegram Bot Activity -->
+
+      </div>
+      <!-- END: Second Row Grid -->
+
+      <!-- BEGIN: Automatic System Flow Chart -->
+      <section id="system-flow" class="bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 mb-6"
+        data-purpose="system-flow">
+        <div class="flex items-center space-x-2 mb-8">
+          <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+          <h3 class="font-bold text-base uppercase tracking-wide">6. AUTOMATIC SYSTEM FLOW (STATE STEPPER)</h3>
+        </div>
+
+        <!-- Horizontal Flowchart Steps -->
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4 px-2 relative">
+          <!-- Flow step 1 -->
+          <div id="step-node-1"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs group">
+            <div
+              class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.675.337a8 8 0 01-8.154-.193M4.744 10.044a3 3 0 01.82.312l5.474 2.737a1 1 0 00.895 0l5.474-2.737a3 3 0 01.82-.312m-12.608 0a3 3 0 00-1.124 1.258m12.608-1.258a3 3 0 011.124 1.258M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707.707"
+                  stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">1. Monitor Level</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Ultrasonic Active)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 2 -->
+          <div id="step-node-2"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div
+              class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown relative">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M19 14l-7 7m0 0l-7-7m7 7V3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                </path>
+              </svg>
+              <span
+                class="absolute -top-1 -right-1 bg-status-red text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black">!</span>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">2. Water &le; 20%</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Crit Threshold)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 3 -->
+          <div id="step-node-3"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                  stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">3. Check Load</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Max 25V Limit)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 4 -->
+          <div id="step-node-4"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                </path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">4. Shed Loads</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(OLED &rarr; Fan &rarr; LED)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 5 -->
+          <div id="step-node-5"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                </path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">5. Pump ON</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Filling Water)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 6 -->
+          <div id="step-node-6"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-1.5 text-blue-500">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path clip-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z"
+                  fill-rule="evenodd"></path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">6. Tank Full</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Level = 100%)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 7 -->
+          <div id="step-node-7"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div
+              class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown relative">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              <span
+                class="absolute -top-1 -right-1 bg-status-green text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black">✓</span>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">7. Restore Devices</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Pump OFF &bull; Relays ON)</span>
+          </div>
+
+          <div class="lg:block text-orange-200 rotate-90 lg:rotate-0 flex-shrink-0">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path clip-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                fill-rule="evenodd"></path>
+            </svg>
+          </div>
+
+          <!-- Flow step 8 -->
+          <div id="step-node-8"
+            class="flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs">
+            <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-1.5 text-accent-brown">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+            </div>
+            <p class="text-[9px] font-bold text-center text-gray-800 leading-tight">8. Loop Back</p>
+            <span class="text-[8px] text-gray-400 mt-0.5 text-center">(Restart Cycle)</span>
+          </div>
+        </div>
+      </section>
+      <!-- END: Automatic System Flow -->
+
+      <!-- BEGIN: Footer -->
+      <footer
+        class="mt-8 pt-4 border-t border-orange-100/50 flex justify-between items-center text-[9px] font-bold text-accent-brown/50 uppercase tracking-widest">
+        <p>Smart Water Tank IoT Monitoring & Load-Shedding System</p>
+        <p>Powered by ESP32 + I2C LCD + Telegram Bot</p>
+        <div class="flex items-center space-x-1">
+          <svg class="w-3.5 h-3.5 text-accent-orange animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+            <path clip-rule="evenodd"
+              d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+              fill-rule="evenodd"></path>
+          </svg>
+        </div>
+      </footer>
+      <!-- END: Footer -->
+    </main>
+  </div>
+
+  <!-- ==============================================
+     SIMULATOR ENGINE JAVASCRIPT
+     ============================================== -->
+  <script>
+    // ----------------------------------------------------
+    // SIMULATION STATE VARIABLES
+    // ----------------------------------------------------
+    let waterLevel = 75.0;            // Water volume (0% to 100%)
+    let isSimulating = true;          // Flag for active decay/filling simulation
+    let simSpeed = 2;                 // Speed multiplier (1 to 5)
+    let isFilling = false;            // System state: in monitoring vs. in filling phase
+    let pumpState = false;            // Pump relay state (ON/OFF)
+    let sensorFault = false;          // Mock sensor failure state
+    let uptimeSeconds = 0;            // ESP32 uptime simulation counter
+    let bootTimeLeft = 0;             // Tracks restart booting countdown steps
+    let isBooting = false;            // Booting lock flag
+
+    // Voltages definition
+    const PUMP_V = 12;
+    const OLED_V = 5;
+    const FAN_V = 7;
+    const LED1_V = 3;
+    const LED2_V = 3;
+    const VOLTAGE_LIMIT = 25;
+
+    // Track if user wants device to be active (User Switch toggle)
+    const userSwitches = {
+      oled: true,
+      fan: true,
+      led1: true,
+      led2: true
+    };
+
+    // Actual relays managed by ESP32 (Auto-shedding alters these)
+    const relayStates = {
+      oled: true,
+      fan: true,
+      led1: true,
+      led2: true
+    };
+
+    // Keep track of which relays were cut automatically to restore them later
+    let sheddedRelays = [];
+
+    // Active flowchart step index (1-8)
+    let currentFlowStep = 1;
+
+    // ----------------------------------------------------
+    // TIME / CLOCK HANDLER
+    // ----------------------------------------------------
+    function updateClock() {
+      const now = new Date();
+      const clockElement = document.getElementById('dashboard-clock');
+      const dateElement = document.getElementById('dashboard-date');
+      if (clockElement) {
+        clockElement.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+      }
+      if (dateElement) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateElement.textContent = now.toLocaleDateString('id-ID', options);
+      }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ----------------------------------------------------
+    // DOM ELEMENT REFERENCES
+    // ----------------------------------------------------
+    const waterFill = document.getElementById('tank-water-fill');
+    const waterStream = document.getElementById('water-stream');
+    const waterPctText = document.getElementById('water-pct-text');
+    const waterStatusBadge = document.getElementById('water-status-badge');
+    const ultrasonicDist = document.getElementById('ultrasonic-dist');
+    const sensorStatusText = document.getElementById('sensor-status-text');
+    const sensorStatusIcon = document.getElementById('sensor-status-icon');
+    const tankAlarm = document.getElementById('tank-alarm');
+
+    const pumpVisualContainer = document.getElementById('pump-visual-container');
+    const pumpStatusBadge = document.getElementById('pump-status-badge');
+    const pumpDot = document.getElementById('pump-dot');
+    const pumpStatusTxt = document.getElementById('pump-status-txt');
+    const systemModeText = document.getElementById('system-mode-text');
+
+    const totalLoadText = document.getElementById('total-load-text');
+    const energyStatusBadge = document.getElementById('energy-status-badge');
+    const gaugeLoadArc = document.getElementById('gauge-load-arc');
+    const gaugeNeedle = document.getElementById('gauge-needle');
+
+    const powerAlertBox = document.getElementById('power-alert-box');
+    const powerAlertIconContainer = document.getElementById('power-alert-icon-container');
+    const powerAlertIcon = document.getElementById('power-alert-icon');
+    const powerAlertTitle = document.getElementById('power-alert-title');
+    const powerAlertDesc = document.getElementById('power-alert-desc');
+
+    const lcdLine1 = document.getElementById('lcd-line-1');
+    const lcdLine2 = document.getElementById('lcd-line-2');
+    const lcdLine3 = document.getElementById('lcd-line-3');
+    const lcdLine4 = document.getElementById('lcd-line-4');
+
+    const oledSwitch = document.getElementById('toggle-oled');
+    const fanSwitch = document.getElementById('toggle-fan');
+    const led1Switch = document.getElementById('toggle-led1');
+    const led2Switch = document.getElementById('toggle-led2');
+
+    const oledStatusLabel = document.getElementById('device-status-oled');
+    const fanStatusLabel = document.getElementById('device-status-fan');
+    const led1StatusLabel = document.getElementById('device-status-led1');
+    const led2StatusLabel = document.getElementById('device-status-led2');
+    const pumpStatusLabel = document.getElementById('device-status-pump');
+
+    const oledIcon = document.getElementById('device-icon-oled');
+    const fanIcon = document.getElementById('device-icon-fan');
+    const led1Icon = document.getElementById('device-icon-led1');
+    const led2Icon = document.getElementById('device-icon-led2');
+    const pumpIcon = document.getElementById('device-icon-pump');
+    const pumpLabel = document.getElementById('device-label-pump');
+
+    const oledItem = document.getElementById('device-item-oled');
+    const fanItem = document.getElementById('device-item-fan');
+    const led1Item = document.getElementById('device-item-led1');
+    const led2Item = document.getElementById('device-item-led2');
+    const pumpItem = document.getElementById('device-item-pump');
+
+    const mockOledTv = document.getElementById('mock-oled-tv');
+    const mockOledScreen = document.getElementById('mock-oled-screen');
+    const mockOledScreenOff = document.getElementById('mock-oled-screen-off');
+    const mockFanBlades = document.getElementById('mock-fan-blades');
+    const mockLed1 = document.getElementById('mock-led-1');
+    const mockLed2 = document.getElementById('mock-led-2');
+    const mockLedStatusText = document.getElementById('mock-status-text-led');
+    const mockLedStatusDot = document.getElementById('mock-status-dot-led');
+    const mockOledStatusText = document.getElementById('mock-status-text-oled');
+    const mockOledStatusDot = document.getElementById('mock-status-dot-oled');
+    const mockFanStatusText = document.getElementById('mock-status-text-fan');
+    const mockFanStatusDot = document.getElementById('mock-status-dot-fan');
+    const mockPump = document.getElementById('mock-pump');
+    const mockPumpStatusText = document.getElementById('mock-status-text-pump');
+    const mockPumpStatusDot = document.getElementById('mock-status-dot-pump');
+
+    const overrideSlider = document.getElementById('override-water-slider');
+    const overrideLabel = document.getElementById('override-pct-label');
+    const speedSlider = document.getElementById('sim-speed-slider');
+    const speedLabel = document.getElementById('sim-speed-label');
+    const btnToggleSim = document.getElementById('btn-toggle-sim');
+    const simBtnText = document.getElementById('sim-btn-text');
+    const simPlayIcon = document.getElementById('sim-play-icon');
+    const btnResetHw = document.getElementById('btn-reset-hw');
+    const sensorFaultToggle = document.getElementById('sensor-fault-toggle');
+
+    const telegramLogs = document.getElementById('telegram-chat-logs');
+    const tgCommandForm = document.getElementById('tg-command-form');
+    const tgCommandInput = document.getElementById('tg-command-input');
+
+    const espUptimeVal = document.getElementById('esp-uptime-val');
+    const esp32StatusLed = document.getElementById('esp32-status-led');
+    const esp32PowerLed = document.getElementById('esp32-power-led');
+    const esp32WifiLed = document.getElementById('esp32-wifi-led');
+    const esp32WifiTxt = document.getElementById('esp32-wifi-txt');
+    const espStatusText = document.getElementById('esp-status-text');
+    const espStatusDot = document.getElementById('esp-status-dot');
+
+    // Set initial Telegram time stamps
+    const initialTimeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('tg-init-time').textContent = initialTimeStr;
+
+    // ----------------------------------------------------
+    // LOGGING / TELEGRAM HELPER
+    // ----------------------------------------------------
+    function addTelegramMessage(sender, text, isBot = true, time = null) {
+      if (!time) {
+        time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      const bubble = document.createElement('div');
+      if (isBot) {
+        bubble.className = "flex items-start space-x-2 bg-white p-3 rounded-2xl shadow-xs border border-orange-50/30 transition-all duration-300 animate-slide-in";
+        bubble.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold font-mono shadow-xs select-none">🤖</div>
+        <div class="flex-1 text-xs">
+          <div class="flex items-center justify-between mb-0.5">
+            <span class="font-bold text-accent-brown">${sender} <span class="bg-blue-100 text-blue-700 text-[8px] px-1 rounded-sm">Bot</span></span>
+            <span class="text-[9px] text-gray-400">${time}</span>
+          </div>
+          <div class="text-gray-600 leading-normal font-sans">${text}</div>
+        </div>
+      `;
+      } else {
+        bubble.className = "flex items-start space-x-2 bg-blue-50/80 p-3 rounded-2xl shadow-xs border border-blue-100/30 self-end ml-12 transition-all duration-300 animate-slide-in";
+        bubble.innerHTML = `
+        <div class="flex-1 text-xs text-right">
+          <div class="flex items-center justify-between mb-0.5">
+            <span class="text-[9px] text-gray-400">${time}</span>
+            <span class="font-bold text-accent-brown">${sender}</span>
+          </div>
+          <div class="text-gray-700 font-mono text-[11.5px]">${text}</div>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-accent-brown flex items-center justify-center text-white flex-shrink-0 text-xs font-bold shadow-xs select-none">👤</div>
+      `;
+      }
+      telegramLogs.appendChild(bubble);
+      telegramLogs.scrollTop = telegramLogs.scrollHeight;
+    }
+
+    // Helper for simulated typing delay
+    function botResponse(responseText, delay = 800) {
+      // Add temporary typing element
+      const typingBubble = document.createElement('div');
+      typingBubble.className = "flex items-start space-x-2 bg-white p-2.5 rounded-2xl shadow-xs border border-orange-50/30 w-fit animate-pulse";
+      typingBubble.id = "tg-typing-indicator";
+      typingBubble.innerHTML = `
+      <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold">🤖</div>
+      <div class="p-2 text-xs font-semibold text-gray-400 italic">Typing...</div>
+    `;
+      telegramLogs.appendChild(typingBubble);
+      telegramLogs.scrollTop = telegramLogs.scrollHeight;
+
+      setTimeout(() => {
+        const el = document.getElementById("tg-typing-indicator");
+        if (el) el.remove();
+        addTelegramMessage("SmartTank Bot", responseText, true);
+      }, delay);
+    }
+
+    // ----------------------------------------------------
+    // HARDWARE RESET SIMULATION
+    // ----------------------------------------------------
+    function resetESP32() {
+      isBooting = true;
+      bootTimeLeft = 4;
+      isSimulating = false;
+      isFilling = false;
+      pumpState = false;
+      sensorFault = false;
+      sensorFaultToggle.checked = false;
+      uptimeSeconds = 0;
+
+      // Disable inputs
+      btnToggleSim.disabled = true;
+      overrideSlider.disabled = true;
+      btnResetHw.disabled = true;
+
+      // Reset Relays
+      for (let d in relayStates) {
+        relayStates[d] = true;
+      }
+      sheddedRelays = [];
+
+      // Trigger board status changes
+      espStatusText.textContent = "Rebooting...";
+      espStatusText.classList.add("text-status-red");
+      espStatusDot.className = "w-2 h-2 rounded-full bg-status-red animate-ping";
+      esp32StatusLed.className = "w-2 h-2 rounded-full bg-slate-700";
+      esp32WifiLed.className = "w-2 h-2 rounded-full bg-slate-700";
+      esp32WifiTxt.textContent = "WIFI: DISCONNECTED";
+
+      addTelegramMessage("SmartTank Bot", "🔄 ESP32 System reboot requested. Connection lost.");
+
+      runBootSequence();
+    }
+
+    function runBootSequence() {
+      if (bootTimeLeft === 4) {
+        lcdLine1.textContent = "====================";
+        lcdLine2.textContent = "   ESP32 BOOTING    ";
+        lcdLine3.textContent = "   SDK VERSION 4.4  ";
+        lcdLine4.textContent = "====================";
+        bootTimeLeft--;
+        setTimeout(runBootSequence, 750);
+      } else if (bootTimeLeft === 3) {
+        lcdLine1.textContent = "INIT COMPONENTS...  ";
+        lcdLine2.textContent = "ULTRASONIC SEN: OK  ";
+        lcdLine3.textContent = "RELAY SYSTEM  : OK  ";
+        lcdLine4.textContent = "OLED & LCD I2C: OK  ";
+        bootTimeLeft--;
+        setTimeout(runBootSequence, 750);
+      } else if (bootTimeLeft === 2) {
+        lcdLine1.textContent = "WIFI CONNECTING...  ";
+        lcdLine2.textContent = "SSID: SmartIoT_AP   ";
+        lcdLine3.textContent = "IP: 192.168.1.144   ";
+        lcdLine4.textContent = "RSSI: -65 dBm (OK)  ";
+        esp32WifiLed.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+        esp32WifiTxt.textContent = "WIFI: CONNECTING";
+        bootTimeLeft--;
+        setTimeout(runBootSequence, 750);
+      } else if (bootTimeLeft === 1) {
+        lcdLine1.textContent = "TELEGRAM CLIENT: OK ";
+        lcdLine2.textContent = "BOT INSTANCE ID:    ";
+        lcdLine3.textContent = "  @SmartTank_Bot    ";
+        lcdLine4.textContent = "CONNECTING OK. START";
+        esp32WifiLed.className = "w-2 h-2 rounded-full bg-status-green";
+        esp32WifiTxt.textContent = "WIFI: CONNECTED";
+        bootTimeLeft--;
+        setTimeout(runBootSequence, 750);
+      } else {
+        isBooting = false;
+        isSimulating = true;
+        btnToggleSim.disabled = false;
+        overrideSlider.disabled = false;
+        btnResetHw.disabled = false;
+
+        espStatusText.textContent = "Connected";
+        espStatusText.classList.remove("text-status-red");
+        espStatusDot.className = "w-2 h-2 rounded-full bg-status-green animate-ping";
+        esp32StatusLed.className = "w-2 h-2 rounded-full bg-cyan-400";
+
+        // Update Simulation Controls Buttons UI
+        simBtnText.textContent = "Pause Sim";
+        btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+        simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+
+        addTelegramMessage("SmartTank Bot", "🤖 ESP32 booted successfully! WiFi connected. Listening for commands.");
+        updateDashboardUI();
+      }
+    }
+
+    // ----------------------------------------------------
+    // INTERACTIVE TELEGRAM COMMANDS
+    // ----------------------------------------------------
+    tgCommandForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const command = tgCommandInput.value.trim().toLowerCase();
+      if (command === "") return;
+
+      addTelegramMessage("User", tgCommandInput.value, false);
+      tgCommandInput.value = "";
+
+      if (isBooting) {
+        botResponse("❌ ESP32 System sedang booting, mohon tunggu beberapa saat...");
+        return;
+      }
+
+      // Process Telegram command
+      if (command === "/status") {
+        let activeDevs = [];
+        if (userSwitches.oled && relayStates.oled) activeDevs.push("OLED Display 📺");
+        if (userSwitches.fan && relayStates.fan) activeDevs.push("Cooling Fan 🌀");
+        if (userSwitches.led1 && relayStates.led1) activeDevs.push("LED 1 💡");
+        if (userSwitches.led2 && relayStates.led2) activeDevs.push("LED 2 💡");
+
+        const statusText = `
+        📊 <b>STATUS SYSTEM:</b><br>
+        💧 Level Air : <b>${waterLevel.toFixed(1)}%</b><br>
+        🔌 Pompa : <b>${pumpState ? "ON 🔌" : "OFF 💤"}</b><br>
+        ⚡ Beban Listrik : <b>${calculateTotalLoad()}V</b> (Batas: 25V)<br>
+        ⚙️ Mode : <b>${isFilling ? "Filling Mode (Pengisian)" : "Monitoring Mode"}</b><br>
+        📟 Device Aktif : ${activeDevs.length > 0 ? activeDevs.join(", ") : "Tidak Ada"}<br>
+        📶 Sensor Status: <b>${sensorFault ? "⚠ SENSOR ERROR!" : "NORMAL"}</b>
+      `;
+        botResponse(statusText);
+      }
+      else if (command === "/help") {
+        const helpText = `
+        ❓ <b>Daftar Perintah Bot:</b><br>
+        • <code>/status</code> - Cek level air, pompa, beban, dan mode saat ini.<br>
+        • <code>/devices</code> - Detail status alat (OLED, Kipas, LED1, LED2).<br>
+        • <code>/pump_on</code> - Paksa nyalakan pompa (Masuk mode pengisian jika aman).<br>
+        • <code>/pump_off</code> - Paksa matikan pompa (Kembali ke mode monitor).
+      `;
+        botResponse(helpText);
+      }
+      else if (command === "/devices") {
+        const devText = `
+        📟 <b>STATUS PERANGKAT ELEKTRONIK:</b><br>
+        • OLED Display (5V): <b>${userSwitches.oled ? (relayStates.oled ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
+        • Kipas Angin (7V): <b>${userSwitches.fan ? (relayStates.fan ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
+        • LED Room 1 (3V): <b>${userSwitches.led1 ? (relayStates.led1 ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
+        • LED Room 2 (3V): <b>${userSwitches.led2 ? (relayStates.led2 ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b>
+      `;
+        botResponse(devText);
+      }
+      else if (command === "/pump_on") {
+        if (pumpState) {
+          botResponse("🔌 Pompa sudah dalam kondisi menyala.");
+        } else {
+          if (sensorFault) {
+            botResponse("❌ Gagal menyalakan pompa! Sensor ultrasonic mengalami gangguan.");
+            return;
+          }
+          isFilling = true;
+          botResponse("🔌 Perintah diterima. Memulai pengisian air (Masuk mode filling)...");
+          // Load manager will turn on the pump inside the loop
+        }
+      }
+      else if (command === "/pump_off") {
+        if (!pumpState) {
+          botResponse("🔌 Pompa memang sudah dalam kondisi mati.");
+        } else {
+          isFilling = false;
+          pumpState = false;
+          restoreSheddedDevices();
+          botResponse("🔌 Perintah diterima. Mematikan pompa, mengembalikan beban listrik, dan kembali ke mode monitoring.");
+        }
+      }
+      else {
+        botResponse("❌ Perintah tidak dikenal. Ketik <code>/help</code> untuk daftar perintah.");
+      }
+    });
+
+    // ----------------------------------------------------
+    // ENERGY LOAD MANAGEMENT ALGORITHM
+    // ----------------------------------------------------
+    function calculateTotalLoad() {
+      let load = 0;
+
+      // OLED Display (5V)
+      if (userSwitches.oled && relayStates.oled) load += OLED_V;
+
+      // Cooling Fan (7V)
+      if (userSwitches.fan && relayStates.fan) load += FAN_V;
+
+      // LED 1 (3V)
+      if (userSwitches.led1 && relayStates.led1) load += LED1_V;
+
+      // LED 2 (3V)
+      if (userSwitches.led2 && relayStates.led2) load += LED2_V;
+
+      // Water Pump (12V)
+      if (pumpState) load += PUMP_V;
+
+      return load;
+    }
+
+    // Core IoT Logic: Evaluates power limit and turns off devices based on priority
+    function evaluateLoadAndShed() {
+      // Potential load is what the load will be with the pump (12V) active
+      let baseLoadWithoutPump = 0;
+      if (userSwitches.oled && relayStates.oled) baseLoadWithoutPump += OLED_V;
+      if (userSwitches.fan && relayStates.fan) baseLoadWithoutPump += FAN_V;
+      if (userSwitches.led1 && relayStates.led1) baseLoadWithoutPump += LED1_V;
+      if (userSwitches.led2 && relayStates.led2) baseLoadWithoutPump += LED2_V;
+
+      let potentialTotal = baseLoadWithoutPump + PUMP_V;
+
+      // Check if shedding is required
+      if (potentialTotal > VOLTAGE_LIMIT) {
+        currentFlowStep = 4; // Step 4: Disable Device Priority
+
+        // We need to shed load. Priority to turn off: OLED (5V) -> Fan (7V) -> LEDs (3V)
+        // Shed OLED first
+        if (userSwitches.oled && relayStates.oled) {
+          relayStates.oled = false;
+          sheddedRelays.push('oled');
+          addTelegramMessage("SmartTank Bot", "⚡ <b>BEBAN BERLEBIH!</b> Mematikan <b>OLED Display (5V)</b> untuk mengosongkan beban sebelum pompa aktif.");
+          potentialTotal -= OLED_V;
+        }
+
+        // If still exceeding 25V, shed Fan next
+        if (potentialTotal > VOLTAGE_LIMIT && userSwitches.fan && relayStates.fan) {
+          relayStates.fan = false;
+          sheddedRelays.push('fan');
+          addTelegramMessage("SmartTank Bot", "⚡ <b>BEBAN MASIH BERLEBIH!</b> Mematikan <b>Cooling Fan (7V)</b>.");
+          potentialTotal -= FAN_V;
+        }
+
+        // If still exceeding, shed LED 2
+        if (potentialTotal > VOLTAGE_LIMIT && userSwitches.led2 && relayStates.led2) {
+          relayStates.led2 = false;
+          sheddedRelays.push('led2');
+          addTelegramMessage("SmartTank Bot", "⚡ <b>BEBAN MASIH BERLEBIH!</b> Mematikan <b>LED Room 2 (3V)</b>.");
+          potentialTotal -= LED2_V;
+        }
+
+        // If still exceeding, shed LED 1
+        if (potentialTotal > VOLTAGE_LIMIT && userSwitches.led1 && relayStates.led1) {
+          relayStates.led1 = false;
+          sheddedRelays.push('led1');
+          addTelegramMessage("SmartTank Bot", "⚡ <b>BEBAN MASIH BERLEBIH!</b> Mematikan <b>LED Room 1 (3V)</b>.");
+          potentialTotal -= LED1_V;
+        }
+      }
+    }
+
+    // Restore shedded relays to normal ON states
+    function restoreSheddedDevices() {
+      if (sheddedRelays.length > 0) {
+        sheddedRelays.forEach(device => {
+          relayStates[device] = true;
+        });
+        addTelegramMessage("SmartTank Bot", `🔄 Beban aman. Mengaktifkan kembali perangkat yang sebelumnya dimatikan: <b>${sheddedRelays.map(d => d.toUpperCase()).join(", ")}</b>`);
+        sheddedRelays = [];
+      }
+    }
+
+    // ----------------------------------------------------
+    // UPDATE UI FUNCTION
+    // ----------------------------------------------------
+    function updateDashboardUI() {
+      if (isBooting) return;
+
+      // 1. Water Tank Visual & Stats
+      waterFill.style.height = `${waterLevel}%`;
+      waterPctText.textContent = Math.round(waterLevel);
+
+      // Wave speed changes if pump is active
+      const waveEl = waterFill.querySelector('.water-wave');
+      if (waveEl) {
+        waveEl.style.animationDuration = pumpState ? '1.5s' : '3s';
+      }
+
+      // Inlet Pipe Stream
+      if (pumpState) {
+        waterStream.classList.remove('hidden');
+      } else {
+        waterStream.classList.add('hidden');
+      }
+
+      // Ultrasonic distance calculation: height is 20cm max (100% full = 0cm, 0% full = 20cm)
+      const distanceVal = ((100 - waterLevel) * 20 / 100).toFixed(1);
+
+      if (sensorFault) {
+        ultrasonicDist.textContent = "ERR cm";
+        sensorStatusText.textContent = "FAULT / ERROR";
+        sensorStatusText.className = "text-xs font-bold text-status-red animate-pulse";
+        sensorStatusIcon.className = "p-2 bg-red-50 rounded-lg text-status-red";
+        tankAlarm.classList.remove('hidden');
+        waterStatusBadge.className = "mt-2 flex items-center bg-status-red/10 text-status-red px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider";
+        waterStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-status-red mr-1 animate-ping"></span> ERROR`;
+      } else {
+        ultrasonicDist.textContent = `${distanceVal} cm`;
+        sensorStatusText.textContent = "ACTIVE";
+        sensorStatusText.className = "text-xs font-bold text-status-green";
+        sensorStatusIcon.className = "p-2 bg-green-50 rounded-lg text-status-green";
+        tankAlarm.classList.add('hidden');
+
+        // Water level threshold badge color
+        if (waterLevel <= 20) {
+          waterStatusBadge.className = "mt-2 flex items-center bg-status-red/10 text-status-red px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider";
+          waterStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 bg-status-red rounded-full mr-1.5 animate-ping"></span> CRITICAL LOW`;
+        } else if (waterLevel <= 50) {
+          waterStatusBadge.className = "mt-2 flex items-center bg-accent-orange/10 text-accent-orange px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider";
+          waterStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 bg-accent-orange rounded-full mr-1.5"></span> MID LEVEL`;
+        } else {
+          waterStatusBadge.className = "mt-2 flex items-center bg-status-green/10 text-status-green px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider";
+          waterStatusBadge.innerHTML = `<svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fill-rule="evenodd"></path></svg> NORMAL`;
+        }
+      }
+
+      // Update Slider Label
+      overrideLabel.textContent = `${Math.round(waterLevel)}%`;
+      overrideSlider.value = Math.round(waterLevel);
+
+      // 2. Pump & Relays Badge
+      if (pumpState) {
+        pumpVisualContainer.className = "w-20 h-20 bg-status-green/10 rounded-full flex items-center justify-center border-2 border-status-green animate-pulse";
+        pumpVisualContainer.querySelector('svg').className = "w-12 h-12 text-status-green shake-active";
+        pumpStatusBadge.textContent = "ON";
+        pumpStatusBadge.className = "text-xl font-black text-status-green";
+        pumpDot.className = "w-1.5 h-1.5 rounded-full bg-status-green animate-ping";
+        pumpStatusTxt.textContent = "Pump Active (12V)";
+        pumpStatusTxt.className = "text-[9px] font-extrabold text-status-green uppercase";
+      } else {
+        pumpVisualContainer.className = "w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200";
+        pumpVisualContainer.querySelector('svg').className = "w-12 h-12 text-accent-brown opacity-40";
+        pumpStatusBadge.textContent = "OFF";
+        pumpStatusBadge.className = "text-xl font-black text-status-red";
+        pumpDot.className = "w-1.5 h-1.5 rounded-full bg-status-red";
+        pumpStatusTxt.textContent = "Pump Stopped";
+        pumpStatusTxt.className = "text-[9px] font-bold text-gray-400";
+      }
+
+      systemModeText.textContent = isFilling ? "Filling Mode" : "Monitoring Mode";
+
+      // 3. Energy Management Stats
+      const totalLoad = calculateTotalLoad();
+      totalLoadText.textContent = totalLoad;
+
+      // SVG Gauge math
+      // dasharray is 125.6 (representing semi-circle of r=40). 
+      // stroke-dashoffset = 125.6 * (1 - load/30)
+      const dashOffset = 125.6 * (1 - totalLoad / 30);
+      gaugeLoadArc.setAttribute('stroke-dashoffset', dashOffset);
+
+      // Needle Angle: (load/30) * 180 - 90
+      const needleAngle = (totalLoad / 30) * 180 - 90;
+      gaugeNeedle.style.transform = `rotate(${needleAngle}deg)`;
+
+      // Change arc color depending on load
+      if (totalLoad > VOLTAGE_LIMIT) {
+        gaugeLoadArc.setAttribute('stroke', '#ef4444'); // Red overload
+        energyStatusBadge.className = "absolute bottom-0 left-1/2 -translate-x-1/2 bg-status-red/10 text-status-red px-3 py-0.5 rounded-full text-[10px] font-black border border-status-red/20";
+        energyStatusBadge.textContent = "OVERLOAD";
+
+        powerAlertBox.className = "mt-4 p-3 bg-red-50 rounded-2xl flex items-center justify-between border border-red-100";
+        powerAlertIconContainer.className = "p-2 bg-status-red rounded-lg text-white";
+        powerAlertIcon.innerHTML = `<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+        powerAlertTitle.textContent = "OVERLOAD ALERT";
+        powerAlertTitle.className = "text-xs font-bold text-status-red uppercase";
+        powerAlertDesc.textContent = "Total load exceeds 25V maximum capacity!";
+      } else {
+        gaugeLoadArc.setAttribute('stroke', totalLoad >= 25 ? '#d97706' : '#22c55e'); // Orange warning or green safe
+        energyStatusBadge.className = "absolute bottom-0 left-1/2 -translate-x-1/2 bg-status-green/10 text-status-green px-3 py-0.5 rounded-full text-[10px] font-black border border-status-green/20";
+        energyStatusBadge.textContent = "SAFE";
+
+        powerAlertBox.className = "mt-4 p-3 bg-green-50 rounded-2xl flex items-center justify-between border border-green-100";
+        powerAlertIconContainer.className = "p-2 bg-status-green rounded-lg text-white";
+        powerAlertIcon.innerHTML = `<path clip-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 4.946-2.597 9.29-6.518 11.771a1.304 1.304 0 01-1.464 0C6.012 16.29 3.415 11.946 3.415 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fill-rule="evenodd"></path>`;
+        powerAlertTitle.textContent = "ENERGY STATUS";
+        powerAlertTitle.className = "text-xs font-bold text-status-green uppercase";
+        powerAlertDesc.textContent = "Total system power load is within safe limits.";
+      }
+
+      // 4. Update Device switches list
+      updateDeviceRow(oledSwitch, oledStatusLabel, oledIcon, oledItem, 'oled', OLED_V);
+      updateDeviceRow(fanSwitch, fanStatusLabel, fanIcon, fanItem, 'fan', FAN_V);
+      updateDeviceRow(led1Switch, led1StatusLabel, led1Icon, led1Item, 'led1', LED1_V);
+      updateDeviceRow(led2Switch, led2StatusLabel, led2Icon, led2Item, 'led2', LED2_V);
+
+      // Pump status row
+      if (pumpState) {
+        pumpStatusLabel.textContent = "ON";
+        pumpStatusLabel.className = "text-[10px] font-extrabold text-status-green";
+        pumpIcon.className = "p-2 bg-green-500 rounded-lg text-white animate-bounce";
+        pumpLabel.className = "text-xs font-bold text-gray-800";
+        pumpItem.className = "flex items-center justify-between p-2.5 bg-green-50/40 rounded-xl border border-green-100 shadow-sm";
+      } else {
+        pumpStatusLabel.textContent = "OFF";
+        pumpStatusLabel.className = "text-[10px] font-extrabold text-status-red";
+        pumpIcon.className = "p-2 bg-white rounded-lg shadow-xs text-gray-400";
+        pumpLabel.className = "text-xs font-bold text-gray-400";
+        pumpItem.className = "flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-transparent";
+      }
+
+      // 5. Physical Hardware mockups visual updates
+      // OLED TV Screen Glow & animation
+      if (userSwitches.oled && relayStates.oled) {
+        mockOledTv.className = "w-28 h-20 bg-slate-950 border-4 border-slate-700 rounded-lg flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 shadow-lg ring-4 ring-cyan-500/10";
+        mockOledScreen.classList.remove('hidden');
+        mockOledScreen.classList.add('flex');
+        mockOledScreenOff.classList.add('hidden');
+        mockOledStatusText.textContent = "ON";
+        mockOledStatusText.className = "text-xs font-bold uppercase text-status-green";
+        mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green";
+      } else {
+        mockOledTv.className = "w-28 h-20 bg-slate-900 border-4 border-slate-700 rounded-lg flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 shadow-md";
+        mockOledScreen.classList.add('hidden');
+        mockOledScreenOff.classList.remove('hidden');
+        mockOledStatusText.className = "text-xs font-bold uppercase text-gray-400";
+        mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-300";
+        if (!relayStates.oled && userSwitches.oled) {
+          mockOledStatusText.textContent = "SHEDDED";
+          mockOledStatusText.className = "text-xs font-extrabold uppercase text-status-red animate-pulse";
+          mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red animate-ping";
+        } else {
+          mockOledStatusText.textContent = "OFF";
+        }
+      }
+
+      // Cooling Fan Spin animation
+      if (userSwitches.fan && relayStates.fan) {
+        mockFanBlades.classList.add('animate-spin-slow');
+        mockFanStatusText.textContent = "ON";
+        mockFanStatusText.className = "text-xs font-bold uppercase text-status-green";
+        mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green";
+      } else {
+        mockFanBlades.classList.remove('animate-spin-slow');
+        mockFanStatusText.className = "text-xs font-bold uppercase text-gray-400";
+        mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-300";
+        if (!relayStates.fan && userSwitches.fan) {
+          mockFanStatusText.textContent = "SHEDDED";
+          mockFanStatusText.className = "text-xs font-extrabold uppercase text-status-red animate-pulse";
+          mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red animate-ping";
+        } else {
+          mockFanStatusText.textContent = "OFF";
+        }
+      }
+
+      // Room LEDs bulbs glow
+      // LED 1
+      if (userSwitches.led1 && relayStates.led1) {
+        mockLed1.className = "w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-lg bulb-glow text-white transition-all duration-300";
+      } else {
+        mockLed1.className = "w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 transition-all duration-300";
+      }
+      // LED 2
+      if (userSwitches.led2 && relayStates.led2) {
+        mockLed2.className = "w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-lg bulb-glow text-white transition-all duration-300";
+      } else {
+        mockLed2.className = "w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 transition-all duration-300";
+      }
+
+      // LEDs common badge text
+      let activeLedsCount = 0;
+      if (userSwitches.led1 && relayStates.led1) activeLedsCount++;
+      if (userSwitches.led2 && relayStates.led2) activeLedsCount++;
+
+      if (activeLedsCount === 2) {
+        mockLedStatusText.textContent = "BOTH ON";
+        mockLedStatusText.className = "text-xs font-bold uppercase text-status-green";
+        mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green";
+      } else if (activeLedsCount === 1) {
+        mockLedStatusText.textContent = "1 ACTIVE";
+        mockLedStatusText.className = "text-xs font-bold uppercase text-accent-orange";
+        mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-accent-orange";
+      } else {
+        mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-300";
+        if ((!relayStates.led1 && userSwitches.led1) || (!relayStates.led2 && userSwitches.led2)) {
+          mockLedStatusText.textContent = "SHEDDED";
+          mockLedStatusText.className = "text-xs font-extrabold uppercase text-status-red animate-pulse";
+          mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red animate-ping";
+        } else {
+          mockLedStatusText.textContent = "BOTH OFF";
+          mockLedStatusText.className = "text-xs font-bold uppercase text-gray-400";
+        }
+      }
+
+      // Pump Mockup Animation
+      if (pumpState) {
+        mockPump.className = "w-16 h-16 rounded-2xl bg-green-500 text-white flex items-center justify-center shadow-lg relative transition-all shake-active border-2 border-green-400";
+        mockPumpStatusText.textContent = "ACTIVE";
+        mockPumpStatusText.className = "text-xs font-extrabold uppercase text-status-green animate-pulse";
+        mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green animate-ping";
+      } else {
+        mockPump.className = "w-16 h-16 rounded-2xl bg-[#f8ead8]/60 border border-orange-100 flex items-center justify-center shadow-inner relative transition-all";
+        mockPumpStatusText.textContent = "STOPPED";
+        mockPumpStatusText.className = "text-xs font-bold uppercase text-status-red";
+        mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+      }
+
+      // 6. LCD text display rows updates
+      if (sensorFault) {
+        lcdLine1.textContent = "WATER LEVEL: ERROR! ";
+        lcdLine2.textContent = "SENSOR ST: FAULT    ";
+        lcdLine3.textContent = `LOAD: ${totalLoad}V (SAFE)    `;
+        lcdLine4.textContent = "SYS: ALARM ACTIVE!  ";
+      } else {
+        lcdLine1.textContent = `WATER LEVEL: ${waterLevel.toFixed(1)}% `;
+        lcdLine2.textContent = `PUMP RELAY : ${pumpState ? "ON " : "OFF"}`;
+        lcdLine3.textContent = `LOAD: ${totalLoad}V (${totalLoad > VOLTAGE_LIMIT ? "OVERLOAD" : "SAFE"})     `;
+
+        if (isFilling) {
+          lcdLine4.textContent = "SYS: FILLING MODE   ";
+        } else {
+          lcdLine4.textContent = "SYS: MONITORING MODE";
+        }
+      }
+
+      // 7. System Stepper flow node highlighting
+      for (let i = 1; i <= 8; i++) {
+        const node = document.getElementById(`step-node-${i}`);
+        if (node) {
+          if (i === currentFlowStep) {
+            node.className = "flex flex-col items-center p-3 rounded-2xl border-2 border-accent-orange bg-orange-100/35 scale-105 shadow-md ring-4 ring-accent-orange/20 transition-all duration-300 w-full lg:w-32 z-10";
+          } else {
+            node.className = "flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs z-0";
+          }
+        }
+      }
+    }
+
+    // Helper function to update each device row in list
+    function updateDeviceRow(switchEl, labelEl, iconEl, itemEl, deviceKey, voltVal) {
+      // Disabled if shedded (Auto cut off)
+      const isShedded = !relayStates[deviceKey] && userSwitches[deviceKey];
+
+      if (isShedded) {
+        switchEl.checked = true;
+        switchEl.disabled = true;
+        switchEl.classList.add('opacity-40');
+
+        labelEl.textContent = "SHEDDED";
+        labelEl.className = "text-[9px] font-extrabold text-status-red animate-pulse";
+
+        iconEl.className = "p-2 bg-red-100 rounded-lg text-status-red";
+
+        itemEl.className = "flex items-center justify-between p-2.5 bg-red-50/50 rounded-xl border border-red-100 shadow-sm";
+      } else {
+        switchEl.disabled = false;
+        switchEl.classList.remove('opacity-40');
+
+        const isCurrentlyOn = userSwitches[deviceKey] && relayStates[deviceKey];
+        switchEl.checked = isCurrentlyOn;
+
+        if (isCurrentlyOn) {
+          labelEl.textContent = "ON";
+          labelEl.className = "text-[10px] font-extrabold text-status-green";
+
+          iconEl.className = "p-2 bg-orange-100 text-accent-brown rounded-lg shadow-xs";
+          itemEl.className = "flex items-center justify-between p-2.5 bg-white rounded-xl border border-orange-100/60 shadow-sm";
+        } else {
+          labelEl.textContent = "OFF";
+          labelEl.className = "text-[10px] font-extrabold text-gray-400";
+
+          iconEl.className = "p-2 bg-white rounded-lg shadow-xs text-gray-300 border border-gray-100";
+          itemEl.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-transparent";
+        }
+      }
+    }
+
+    // ----------------------------------------------------
+    // EVENT LISTENERS FOR CONTROLS
+    // ----------------------------------------------------
+
+    // User Device Switches toggles
+    function handleDeviceToggle(switchEl, deviceKey) {
+      switchEl.addEventListener('change', (e) => {
+        userSwitches[deviceKey] = e.target.checked;
+
+        // Log event to Telegram bot
+        const stateText = userSwitches[deviceKey] ? "ON" : "OFF";
+        addTelegramMessage("SmartTank Bot", `👤 User manually turned <b>${deviceKey.toUpperCase()}</b> to <b>${stateText}</b>.`, true);
+
+        // Re-evaluate load
+        updateDashboardUI();
+      });
+    }
+
+    handleDeviceToggle(oledSwitch, 'oled');
+    handleDeviceToggle(fanSwitch, 'fan');
+    handleDeviceToggle(led1Switch, 'led1');
+    handleDeviceToggle(led2Switch, 'led2');
+
+    // Manual water slider override
+    overrideSlider.addEventListener('input', (e) => {
+      waterLevel = parseFloat(e.target.value);
+
+      // If user changes level manually, evaluate state machine logic immediately
+      if (!sensorFault) {
+        if (waterLevel <= 20) {
+          if (!isFilling) {
+            isFilling = true;
+            addTelegramMessage("SmartTank Bot", `⚠️ <b>SENSOR ALERT!</b> Water level detected <= 20% (${Math.round(waterLevel)}%). Entering filling mode.`);
+            currentFlowStep = 2; // Step 2: Water <= 20%
+          }
+        } else if (waterLevel >= 100) {
+          waterLevel = 100;
+          if (isFilling) {
+            isFilling = false;
+            pumpState = false;
+            currentFlowStep = 6; // Step 6: Tank Full
+            addTelegramMessage("SmartTank Bot", `🎉 <b>SENSOR CONFIRMED!</b> Water tank is FULL (100%). Shutting off pump.`);
+            restoreSheddedDevices();
+            currentFlowStep = 7; // Step 7: Restore Devices
+            setTimeout(() => { currentFlowStep = 1; }, 1000);
+          }
+        } else {
+          // If water level gets manually set above 20% while monitoring, make sure pump stays off
+          if (!isFilling) {
+            pumpState = false;
+            restoreSheddedDevices();
+            currentFlowStep = 1; // Step 1: Monitor Level
+          }
+        }
+      }
+
+      updateDashboardUI();
+    });
+
+    // Simulation Speed changer
+    speedSlider.addEventListener('input', (e) => {
+      simSpeed = parseInt(e.target.value);
+      speedLabel.textContent = `${simSpeed}x`;
+    });
+
+    // Play/Pause simulation loop
+    btnToggleSim.addEventListener('click', () => {
+      isSimulating = !isSimulating;
+
+      if (isSimulating) {
+        simBtnText.textContent = "Pause Sim";
+        btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+        simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+        addTelegramMessage("SmartTank Bot", "▶️ Simulation running. Water consumption simulated.");
+      } else {
+        simBtnText.textContent = "Resume Sim";
+        btnToggleSim.className = "flex-1 bg-accent-orange text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+        simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
+        addTelegramMessage("SmartTank Bot", "⏸️ Simulation paused. Water level static.");
+      }
+    });
+
+    // Restart ESP32 Dev board click
+    btnResetHw.addEventListener('click', () => {
+      resetESP32();
+    });
+
+    // Sensor Fault override toggle
+    sensorFaultToggle.addEventListener('change', (e) => {
+      sensorFault = e.target.checked;
+
+      if (sensorFault) {
+        addTelegramMessage("SmartTank Bot", "🚨 <b>SYSTEM ERROR ALERT!</b> Ultrasonic sensor connection lost or reading invalid distance. Alarm active.");
+        if (pumpState) {
+          pumpState = false;
+          isFilling = false;
+          restoreSheddedDevices();
+          addTelegramMessage("SmartTank Bot", "🔌 Emergency shutdown: Pump relay forced OFF to prevent dry-running or overflow.");
+        }
+        currentFlowStep = 1; // reset flow
+      } else {
+        addTelegramMessage("SmartTank Bot", "✅ Sensor connection restored. Resuming normal operations.");
+      }
+      updateDashboardUI();
+    });
+
+    // ----------------------------------------------------
+    // SIMULATION MAIN INTERVAL LOOP (Run every 1s)
+    // ----------------------------------------------------
+    function simulationTick() {
+      if (isBooting) return;
+
+      uptimeSeconds++;
+
+      // Uptime visual string format
+      const minutes = Math.floor(uptimeSeconds / 60);
+      const secs = uptimeSeconds % 60;
+      espUptimeVal.textContent = `${minutes}m ${secs}s`;
+
+      // Blink status LED on ESP32 board to show active loop
+      esp32StatusLed.classList.add('bg-cyan-500');
+      setTimeout(() => {
+        if (!isBooting) {
+          esp32StatusLed.className = "w-2 h-2 rounded-full bg-cyan-400";
+        }
+      }, 150);
+
+      // If simulating and sensor has no fault, evaluate state machine step-by-step
+      if (isSimulating && !sensorFault) {
+
+        // CASE 1: MONITORING PHASE (Water > 20%) - Water goes down gradually
+        if (!isFilling) {
+          currentFlowStep = 1; // Flow 1: Monitoring Mode
+
+          // Simulating usage depletion
+          waterLevel -= (0.4 * simSpeed);
+          if (waterLevel <= 0) waterLevel = 0;
+
+          // Critical threshold check
+          if (waterLevel <= 20) {
+            isFilling = true;
+            currentFlowStep = 2; // Step 2: Critical Threshold Low
+            addTelegramMessage("SmartTank Bot", `⚠️ <b>ESP32 ALERT:</b> Water level reached <b>${Math.round(waterLevel)}%</b> (Critical low <= 20%). Entering Filling Mode.`);
+
+            // Wait briefly, evaluate load in next tick
+            return;
+          }
+        }
+
+        // CASE 2: FILLING PHASE (Water <= 20% to 100%) - Water fills up
+        else {
+          // If pump is not ON yet, run load balance analysis
+          if (!pumpState) {
+            currentFlowStep = 3; // Step 3: Check Energy Load
+
+            // Check load & shed if necessary
+            evaluateLoadAndShed();
+
+            // Pump turns on
+            pumpState = true;
+            currentFlowStep = 5; // Step 5: Pump ON
+
+            addTelegramMessage("SmartTank Bot", `🔌 <b>RELAY TRIGGER:</b> Pump relay turned <b>ON</b>. Filling tank...`);
+          } else {
+            currentFlowStep = 5; // Step 5: Pump ON (filling)
+
+            // Fill tank
+            waterLevel += (1.2 * simSpeed);
+
+            if (waterLevel >= 100) {
+              waterLevel = 100;
+              currentFlowStep = 6; // Step 6: Tank Full
+
+              addTelegramMessage("SmartTank Bot", `🎉 <b>ESP32 NOTIFICATION:</b> Water tank is completely FULL (100%).`);
+
+              // Shut off pump
+              pumpState = false;
+              isFilling = false;
+
+              currentFlowStep = 7; // Step 7: Restore shedded devices
+              // Turn back ON shedded relays
+              restoreSheddedDevices();
+
+              // Reset flow stepper back to monitoring loop after 1.5 seconds
+              setTimeout(() => {
+                if (!isFilling) currentFlowStep = 8; // Step 8: Loop Back
+                setTimeout(() => {
+                  if (!isFilling) currentFlowStep = 1;
+                }, 1000);
+              }, 1000);
+            }
+          }
+        }
+      }
+
+      updateDashboardUI();
+    }
+
+    // Start the simulation loop ticker
+    setInterval(simulationTick, 1000);
+
+    // Initialize UI display values
+    updateDashboardUI();
+
+  </script>
+</body>
+
+</html>
