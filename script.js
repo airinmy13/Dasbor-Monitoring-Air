@@ -15,7 +15,7 @@ const database = firebase.database();
 
 // Telegram Bot Credentials (matching your ESP32 configuration)
 const BOT_TOKEN = "8633484581:AAEWxLKj2Cmos5E494ouD7qR6ivX5HDRx30";
-const CHAT_ID = "12345"; // Ganti dengan Chat ID asli Anda jika bukan 12345
+const CHAT_ID = "6351746072"; // Ganti dengan Chat ID asli Anda jika bukan 12345
 
 // ----------------------------------------------------
 // SIMULATION STATE VARIABLES
