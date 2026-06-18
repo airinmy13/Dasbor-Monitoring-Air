@@ -1,0 +1,104 @@
+body {
+  background-color: #fcf3e8;
+  color: #4a3728;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #7c4d3a;
+  border-radius: 10px;
+}
+
+/* Simple animation for water level */
+@keyframes wave {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.water-wave {
+  animation: wave 3s linear infinite;
+}
+
+/* Neon glow effects */
+.glow-lcd {
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.25);
+  text-shadow: 0 0 5px rgba(34, 211, 238, 0.7);
+}
+
+/* Device animations */
+@keyframes spin-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.8;
+    box-shadow: 0 0 5px rgba(234, 179, 8, 0.4);
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.8);
+  }
+}
+
+.bulb-glow {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes flow {
+  0% {
+    stroke-dashoffset: 20;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pipe-flow {
+  stroke-dasharray: 6 4;
+  animation: flow 1s linear infinite;
+}
+
+@keyframes shake-tiny {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(0.5px, 0.5px);
+  }
+
+  50% {
+    transform: translate(-0.5px, 0.5px);
+  }
+
+  75% {
+    transform: translate(0.5px, -0.5px);
+  }
+}
+
+.shake-active {
+  animation: shake-tiny 0.1s linear infinite;
+}
