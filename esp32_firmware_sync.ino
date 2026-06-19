@@ -19,7 +19,7 @@
 
 // Firebase Credentials
 #define API_KEY "AIzaSyCKV5zZOpyrs4L_bGWxFcVr6v0P3w97Ias"
-#define DATABASE_URL "https://smart-water-tank-esp32-default-rtdb.firebaseio.com/" 
+#define DATABASE_URL "https://smart-water-tank-esp32-default-rtdb.asia-southeast1.firebasedatabase.app/" 
 
 // Telegram Bot Credentials
 #define BOT_TOKEN "8633484581:AAEWxLKj2Cmos5E494ouD7qR6ivX5HDRx30"
@@ -504,6 +504,11 @@ void loop() {
     
     Firebase.RTDB.setFloat(&fbdo, "/water/level", waterLevel);
     Firebase.RTDB.setInt(&fbdo, "/device/voltage", totalLoad);
+    
+    // Heartbeat update to let Dashboard know the real device is active
+    static unsigned long hbCounter = 0;
+    hbCounter++;
+    Firebase.RTDB.setInt(&fbdo, "/esp32/heartbeat", hbCounter);
   }
   
   // 4. Poll Telegram for new chat commands (every 1.5s)

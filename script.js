@@ -4,7 +4,7 @@
 const firebaseConfig = {
   apiKey: "AIzaSyCKV5zZOpyrs4L_bGWxFcVr6v0P3w97Ias",
   authDomain: "smart-water-tank-esp32.firebaseapp.com",
-  databaseURL: "https://smart-water-tank-esp32-default-rtdb.firebaseio.com",
+  databaseURL: "https://smart-water-tank-esp32-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "smart-water-tank-esp32",
   storageBucket: "smart-water-tank-esp32.appspot.com",
 };
@@ -29,6 +29,11 @@ let sensorFault = false;          // Mock sensor failure state
 let uptimeSeconds = 0;            // ESP32 uptime simulation counter
 let bootTimeLeft = 0;             // Tracks restart booting countdown steps
 let isBooting = false;            // Booting lock flag
+
+// Hardware connection detection
+let lastEspHeartbeat = 0;         // Timestamp of the last received heartbeat from ESP32
+let isEspConnected = false;       // Connection status of the ESP32 hardware
+let useFirebaseData = true;       // Flag to indicate if real ESP32 connection is active
 
 // Voltages definition
 const PUMP_V = 12;
@@ -59,6 +64,17 @@ let sheddedRelays = [];
 
 // Active flowchart step index (1-8)
 let currentFlowStep = 1;
+
+// Data history logging list and load from localStorage
+let sensorHistoryList = [];
+try {
+  const savedHistory = localStorage.getItem('sensor_history');
+  if (savedHistory) {
+    sensorHistoryList = JSON.parse(savedHistory);
+  }
+} catch (e) {
+  console.error("Error loading history from localStorage:", e);
+}
 
 // ----------------------------------------------------
 // TIME / CLOCK HANDLER
@@ -178,6 +194,20 @@ const espStatusDot = document.getElementById('esp-status-dot');
 const initialTimeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 document.getElementById('tg-init-time').textContent = initialTimeStr;
 
+// Initialize dashboard connection states to offline/connecting on startup
+if (espStatusText && espStatusDot) {
+  espStatusText.textContent = "Connecting...";
+  espStatusText.className = "text-xs font-bold text-amber-500";
+  espStatusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+}
+
+if (lcdLine1 && lcdLine2 && lcdLine3 && lcdLine4) {
+  lcdLine1.textContent = "WATER LEVEL: ---    ";
+  lcdLine2.textContent = "PUMP RELAY : ---    ";
+  lcdLine3.textContent = "LOAD: ---           ";
+  lcdLine4.textContent = "SYS: CONNECTING...  ";
+}
+
 // ----------------------------------------------------
 // LOGGING / TELEGRAM HELPER
 // ----------------------------------------------------
@@ -246,13 +276,13 @@ function resetESP32() {
   isFilling = false;
   pumpState = false;
   sensorFault = false;
-  sensorFaultToggle.checked = false;
+  if (sensorFaultToggle) sensorFaultToggle.checked = false;
   uptimeSeconds = 0;
 
   // Disable inputs
-  btnToggleSim.disabled = true;
-  overrideSlider.disabled = true;
-  btnResetHw.disabled = true;
+  if (btnToggleSim) btnToggleSim.disabled = true;
+  if (overrideSlider) overrideSlider.disabled = true;
+  if (btnResetHw) btnResetHw.disabled = true;
 
   // Reset Relays
   for (let d in relayStates) {
@@ -309,9 +339,9 @@ function runBootSequence() {
   } else {
     isBooting = false;
     isSimulating = true;
-    btnToggleSim.disabled = false;
-    overrideSlider.disabled = false;
-    btnResetHw.disabled = false;
+    if (btnToggleSim) btnToggleSim.disabled = false;
+    if (overrideSlider) overrideSlider.disabled = false;
+    if (btnResetHw) btnResetHw.disabled = false;
 
     espStatusText.textContent = "Connected";
     espStatusText.classList.remove("text-status-red");
@@ -319,9 +349,9 @@ function runBootSequence() {
     esp32StatusLed.className = "w-2 h-2 rounded-full bg-cyan-400";
 
     // Update Simulation Controls Buttons UI
-    simBtnText.textContent = "Pause Sim";
-    btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
-    simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+    if (simBtnText) simBtnText.textContent = "Pause Sim";
+    if (btnToggleSim) btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+    if (simPlayIcon) simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
 
     addTelegramMessage("SmartTank Bot", "🤖 ESP32 booted successfully! WiFi connected. Listening for commands.");
     updateDashboardUI();
@@ -382,7 +412,7 @@ tgCommandForm.addEventListener('submit', (e) => {
       if (userSwitches.led2 && relayStates.led2) activeDevs.push("LED 2 💡");
 
       const statusText = `
-      📊 <b>STATUS SYSTEM (SIMULATOR):</b><br>
+      📊 <b>STATUS SYSTEM (OFFLINE):</b><br>
       💧 Level Air : <b>${waterLevel.toFixed(1)}%</b><br>
       🔌 Pompa : <b>${pumpState ? "ON 🔌" : "OFF 💤"}</b><br>
       ⚡ Beban Listrik : <b>${calculateTotalLoad()}V</b> (Batas: 25V)<br>
@@ -394,7 +424,7 @@ tgCommandForm.addEventListener('submit', (e) => {
     }
     else if (command === "/help") {
       const helpText = `
-      ❓ <b>Daftar Perintah Bot (SIMULATOR):</b><br>
+      ❓ <b>Daftar Perintah Bot (OFFLINE):</b><br>
       • <code>/status</code> - Cek level air, pompa, beban, dan mode saat ini.<br>
       • <code>/devices</code> - Detail status alat (OLED, Kipas, LED1, LED2).<br>
       • <code>/pump_on</code> - Paksa nyalakan pompa (Masuk mode pengisian jika aman).<br>
@@ -404,7 +434,7 @@ tgCommandForm.addEventListener('submit', (e) => {
     }
     else if (command === "/devices") {
       const devText = `
-      📟 <b>STATUS PERANGKAT ELEKTRONIK (SIMULATOR):</b><br>
+      📟 <b>STATUS PERANGKAT ELEKTRONIK (OFFLINE):</b><br>
       • OLED Display (5V): <b>${userSwitches.oled ? (relayStates.oled ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
       • Kipas Angin (7V): <b>${userSwitches.fan ? (relayStates.fan ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
       • LED Room 1 (3V): <b>${userSwitches.led1 ? (relayStates.led1 ? "ON" : "OFF (Auto Shedding)") : "OFF (Manual)"}</b><br>
@@ -531,18 +561,25 @@ function restoreSheddedDevices() {
 function updateDashboardUI() {
   if (isBooting) return;
 
+  const online = isEspConnected || !useFirebaseData;
+
   // 1. Water Tank Visual & Stats
-  waterFill.style.height = `${waterLevel}%`;
-  waterPctText.textContent = Math.round(waterLevel);
+  if (online) {
+    waterFill.style.height = `${waterLevel}%`;
+    waterPctText.textContent = Math.round(waterLevel);
+  } else {
+    waterFill.style.height = `0%`;
+    waterPctText.textContent = "---";
+  }
 
   // Wave speed changes if pump is active
   const waveEl = waterFill.querySelector('.water-wave');
   if (waveEl) {
-    waveEl.style.animationDuration = pumpState ? '1.5s' : '3s';
+    waveEl.style.animationDuration = (online && pumpState) ? '1.5s' : '3s';
   }
 
   // Inlet Pipe Stream
-  if (pumpState) {
+  if (online && pumpState) {
     waterStream.classList.remove('hidden');
   } else {
     waterStream.classList.add('hidden');
@@ -551,7 +588,15 @@ function updateDashboardUI() {
   // Ultrasonic distance calculation: height is 20cm max (100% full = 0cm, 0% full = 20cm)
   const distanceVal = ((100 - waterLevel) * 20 / 100).toFixed(1);
 
-  if (sensorFault) {
+  if (!online) {
+    ultrasonicDist.textContent = "--- cm";
+    sensorStatusText.textContent = "OFFLINE";
+    sensorStatusText.className = "text-xs font-bold text-status-red";
+    sensorStatusIcon.className = "p-2 bg-red-50 rounded-lg text-status-red";
+    tankAlarm.classList.add('hidden');
+    waterStatusBadge.className = "mt-2 flex items-center bg-gray-100 text-gray-400 px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider";
+    waterStatusBadge.innerHTML = "OFFLINE";
+  } else if (sensorFault) {
     ultrasonicDist.textContent = "ERR cm";
     sensorStatusText.textContent = "FAULT / ERROR";
     sensorStatusText.className = "text-xs font-bold text-status-red animate-pulse";
@@ -580,11 +625,19 @@ function updateDashboardUI() {
   }
 
   // Update Slider Label
-  overrideLabel.textContent = `${Math.round(waterLevel)}%`;
-  overrideSlider.value = Math.round(waterLevel);
+  if (overrideLabel) overrideLabel.textContent = online ? `${Math.round(waterLevel)}%` : "---";
+  if (overrideSlider) overrideSlider.value = online ? Math.round(waterLevel) : 0;
 
   // 2. Pump & Relays Badge
-  if (pumpState) {
+  if (!online) {
+    pumpVisualContainer.className = "w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200";
+    pumpVisualContainer.querySelector('svg').className = "w-12 h-12 text-accent-brown opacity-40";
+    pumpStatusBadge.textContent = "OFFLINE";
+    pumpStatusBadge.className = "text-base font-black text-status-red";
+    pumpDot.className = "w-1.5 h-1.5 rounded-full bg-status-red";
+    pumpStatusTxt.textContent = "Hardware Offline";
+    pumpStatusTxt.className = "text-[9px] font-bold text-gray-400";
+  } else if (pumpState) {
     pumpVisualContainer.className = "w-20 h-20 bg-status-green/10 rounded-full flex items-center justify-center border-2 border-status-green animate-pulse";
     pumpVisualContainer.querySelector('svg').className = "w-12 h-12 text-status-green shake-active";
     pumpStatusBadge.textContent = "ON";
@@ -602,24 +655,32 @@ function updateDashboardUI() {
     pumpStatusTxt.className = "text-[9px] font-bold text-gray-400";
   }
 
-  systemModeText.textContent = isFilling ? "Filling Mode" : "Monitoring Mode";
+  systemModeText.textContent = !online ? "Offline Mode" : (isFilling ? "Filling Mode" : "Monitoring Mode");
 
   // 3. Energy Management Stats
-  const totalLoad = calculateTotalLoad();
-  totalLoadText.textContent = totalLoad;
+  const totalLoad = online ? calculateTotalLoad() : 0;
+  totalLoadText.textContent = online ? totalLoad : "---";
 
   // SVG Gauge math
-  // dasharray is 125.6 (representing semi-circle of r=40). 
-  // stroke-dashoffset = 125.6 * (1 - load/30)
   const dashOffset = 125.6 * (1 - totalLoad / 30);
   gaugeLoadArc.setAttribute('stroke-dashoffset', dashOffset);
 
-  // Needle Angle: (load/30) * 180 - 90
   const needleAngle = (totalLoad / 30) * 180 - 90;
   gaugeNeedle.style.transform = `rotate(${needleAngle}deg)`;
 
   // Change arc color depending on load
-  if (totalLoad > VOLTAGE_LIMIT) {
+  if (!online) {
+    gaugeLoadArc.setAttribute('stroke', '#cbd5e1'); // Gray/Offline
+    energyStatusBadge.className = "absolute bottom-0 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-400 px-3 py-0.5 rounded-full text-[10px] font-black border border-gray-200";
+    energyStatusBadge.textContent = "OFFLINE";
+
+    powerAlertBox.className = "mt-4 p-3 bg-gray-50 rounded-2xl flex items-center justify-between border border-gray-100";
+    powerAlertIconContainer.className = "p-2 bg-gray-400 rounded-lg text-white";
+    powerAlertIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>`;
+    powerAlertTitle.textContent = "SYSTEM OFFLINE";
+    powerAlertTitle.className = "text-xs font-bold text-gray-400 uppercase";
+    powerAlertDesc.textContent = "Waiting for ESP32 device to connect.";
+  } else if (totalLoad > VOLTAGE_LIMIT) {
     gaugeLoadArc.setAttribute('stroke', '#ef4444'); // Red overload
     energyStatusBadge.className = "absolute bottom-0 left-1/2 -translate-x-1/2 bg-status-red/10 text-status-red px-3 py-0.5 rounded-full text-[10px] font-black border border-status-red/20";
     energyStatusBadge.textContent = "OVERLOAD";
@@ -666,7 +727,7 @@ function updateDashboardUI() {
 
   // 5. Physical Hardware mockups visual updates
   // OLED TV Screen Glow & animation
-  if (userSwitches.oled && relayStates.oled) {
+  if (online && userSwitches.oled && relayStates.oled) {
     mockOledTv.className = "w-28 h-20 bg-slate-950 border-4 border-slate-700 rounded-lg flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 shadow-lg ring-4 ring-cyan-500/10";
     mockOledScreen.classList.remove('hidden');
     mockOledScreen.classList.add('flex');
@@ -680,7 +741,11 @@ function updateDashboardUI() {
     mockOledScreenOff.classList.remove('hidden');
     mockOledStatusText.className = "text-xs font-bold uppercase text-gray-400";
     mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-300";
-    if (!relayStates.oled && userSwitches.oled) {
+    if (!online) {
+      mockOledStatusText.textContent = "OFFLINE";
+      mockOledStatusText.className = "text-xs font-extrabold uppercase text-status-red";
+      mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+    } else if (!relayStates.oled && userSwitches.oled) {
       mockOledStatusText.textContent = "SHEDDED";
       mockOledStatusText.className = "text-xs font-extrabold uppercase text-status-red animate-pulse";
       mockOledStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red animate-ping";
@@ -690,7 +755,7 @@ function updateDashboardUI() {
   }
 
   // Cooling Fan Spin animation
-  if (userSwitches.fan && relayStates.fan) {
+  if (online && userSwitches.fan && relayStates.fan) {
     mockFanBlades.classList.add('animate-spin-slow');
     mockFanStatusText.textContent = "ON";
     mockFanStatusText.className = "text-xs font-bold uppercase text-status-green";
@@ -699,7 +764,11 @@ function updateDashboardUI() {
     mockFanBlades.classList.remove('animate-spin-slow');
     mockFanStatusText.className = "text-xs font-bold uppercase text-gray-400";
     mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-gray-300";
-    if (!relayStates.fan && userSwitches.fan) {
+    if (!online) {
+      mockFanStatusText.textContent = "OFFLINE";
+      mockFanStatusText.className = "text-xs font-extrabold uppercase text-status-red";
+      mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+    } else if (!relayStates.fan && userSwitches.fan) {
       mockFanStatusText.textContent = "SHEDDED";
       mockFanStatusText.className = "text-xs font-extrabold uppercase text-status-red animate-pulse";
       mockFanStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red animate-ping";
@@ -710,13 +779,13 @@ function updateDashboardUI() {
 
   // Room LEDs bulbs glow
   // LED 1
-  if (userSwitches.led1 && relayStates.led1) {
+  if (online && userSwitches.led1 && relayStates.led1) {
     mockLed1.className = "w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-lg bulb-glow text-white transition-all duration-300";
   } else {
     mockLed1.className = "w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 transition-all duration-300";
   }
   // LED 2
-  if (userSwitches.led2 && relayStates.led2) {
+  if (online && userSwitches.led2 && relayStates.led2) {
     mockLed2.className = "w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shadow-lg bulb-glow text-white transition-all duration-300";
   } else {
     mockLed2.className = "w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 transition-all duration-300";
@@ -724,10 +793,14 @@ function updateDashboardUI() {
 
   // LEDs common badge text
   let activeLedsCount = 0;
-  if (userSwitches.led1 && relayStates.led1) activeLedsCount++;
-  if (userSwitches.led2 && relayStates.led2) activeLedsCount++;
+  if (online && userSwitches.led1 && relayStates.led1) activeLedsCount++;
+  if (online && userSwitches.led2 && relayStates.led2) activeLedsCount++;
 
-  if (activeLedsCount === 2) {
+  if (!online) {
+    mockLedStatusText.textContent = "OFFLINE";
+    mockLedStatusText.className = "text-xs font-extrabold uppercase text-status-red";
+    mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+  } else if (activeLedsCount === 2) {
     mockLedStatusText.textContent = "BOTH ON";
     mockLedStatusText.className = "text-xs font-bold uppercase text-status-green";
     mockLedStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green";
@@ -748,20 +821,31 @@ function updateDashboardUI() {
   }
 
   // Pump Mockup Animation
-  if (pumpState) {
+  if (online && pumpState) {
     mockPump.className = "w-16 h-16 rounded-2xl bg-green-500 text-white flex items-center justify-center shadow-lg relative transition-all shake-active border-2 border-green-400";
     mockPumpStatusText.textContent = "ACTIVE";
     mockPumpStatusText.className = "text-xs font-extrabold uppercase text-status-green animate-pulse";
     mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-green animate-ping";
   } else {
     mockPump.className = "w-16 h-16 rounded-2xl bg-[#f8ead8]/60 border border-orange-100 flex items-center justify-center shadow-inner relative transition-all";
-    mockPumpStatusText.textContent = "STOPPED";
-    mockPumpStatusText.className = "text-xs font-bold uppercase text-status-red";
-    mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+    if (!online) {
+      mockPumpStatusText.textContent = "OFFLINE";
+      mockPumpStatusText.className = "text-xs font-extrabold uppercase text-status-red";
+      mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+    } else {
+      mockPumpStatusText.textContent = "STOPPED";
+      mockPumpStatusText.className = "text-xs font-bold uppercase text-status-red";
+      mockPumpStatusDot.className = "w-2.5 h-2.5 rounded-full bg-status-red";
+    }
   }
 
   // 6. LCD text display rows updates
-  if (sensorFault) {
+  if (!online) {
+    lcdLine1.textContent = "WATER LEVEL: OFFLINE";
+    lcdLine2.textContent = "PUMP RELAY : OFFLINE";
+    lcdLine3.textContent = "LOAD: OFFLINE       ";
+    lcdLine4.textContent = "SYS: CONNECTING...  ";
+  } else if (sensorFault) {
     lcdLine1.textContent = "WATER LEVEL: ERROR! ";
     lcdLine2.textContent = "SENSOR ST: FAULT    ";
     lcdLine3.textContent = `LOAD: ${totalLoad}V (SAFE)    `;
@@ -782,7 +866,7 @@ function updateDashboardUI() {
   for (let i = 1; i <= 8; i++) {
     const node = document.getElementById(`step-node-${i}`);
     if (node) {
-      if (i === currentFlowStep) {
+      if (online && i === currentFlowStep) {
         node.className = "flex flex-col items-center p-3 rounded-2xl border-2 border-accent-orange bg-orange-100/35 scale-105 shadow-md ring-4 ring-accent-orange/20 transition-all duration-300 w-full lg:w-32 z-10";
       } else {
         node.className = "flex flex-col items-center p-3 rounded-2xl border-2 border-orange-100 bg-white transition-all duration-300 w-full lg:w-32 shadow-xs z-0";
@@ -860,87 +944,97 @@ handleDeviceToggle(led1Switch, 'led1');
 handleDeviceToggle(led2Switch, 'led2');
 
 // Manual water slider override
-overrideSlider.addEventListener('input', (e) => {
-  waterLevel = parseFloat(e.target.value);
+if (overrideSlider) {
+  overrideSlider.addEventListener('input', (e) => {
+    waterLevel = parseFloat(e.target.value);
 
-  // If user changes level manually, evaluate state machine logic immediately
-  if (!sensorFault) {
-    if (waterLevel <= 20) {
-      if (!isFilling) {
-        isFilling = true;
-        addTelegramMessage("SmartTank Bot", `⚠️ <b>SENSOR ALERT!</b> Water level detected <= 20% (${Math.round(waterLevel)}%). Entering filling mode.`);
-        currentFlowStep = 2; // Step 2: Water <= 20%
-      }
-    } else if (waterLevel >= 100) {
-      waterLevel = 100;
-      if (isFilling) {
-        isFilling = false;
-        pumpState = false;
-        currentFlowStep = 6; // Step 6: Tank Full
-        addTelegramMessage("SmartTank Bot", `🎉 <b>SENSOR CONFIRMED!</b> Water tank is FULL (100%). Shutting off pump.`);
-        restoreSheddedDevices();
-        currentFlowStep = 7; // Step 7: Restore Devices
-        setTimeout(() => { currentFlowStep = 1; }, 1000);
-      }
-    } else {
-      // If water level gets manually set above 20% while monitoring, make sure pump stays off
-      if (!isFilling) {
-        pumpState = false;
-        restoreSheddedDevices();
-        currentFlowStep = 1; // Step 1: Monitor Level
+    // If user changes level manually, evaluate state machine logic immediately
+    if (!sensorFault) {
+      if (waterLevel <= 20) {
+        if (!isFilling) {
+          isFilling = true;
+          addTelegramMessage("SmartTank Bot", `⚠️ <b>SENSOR ALERT!</b> Water level detected <= 20% (${Math.round(waterLevel)}%). Entering filling mode.`);
+          currentFlowStep = 2; // Step 2: Water <= 20%
+        }
+      } else if (waterLevel >= 100) {
+        waterLevel = 100;
+        if (isFilling) {
+          isFilling = false;
+          pumpState = false;
+          currentFlowStep = 6; // Step 6: Tank Full
+          addTelegramMessage("SmartTank Bot", `🎉 <b>SENSOR CONFIRMED!</b> Water tank is FULL (100%). Shutting off pump.`);
+          restoreSheddedDevices();
+          currentFlowStep = 7; // Step 7: Restore Devices
+          setTimeout(() => { currentFlowStep = 1; }, 1000);
+        }
+      } else {
+        // If water level gets manually set above 20% while monitoring, make sure pump stays off
+        if (!isFilling) {
+          pumpState = false;
+          restoreSheddedDevices();
+          currentFlowStep = 1; // Step 1: Monitor Level
+        }
       }
     }
-  }
 
-  updateDashboardUI();
-});
+    updateDashboardUI();
+  });
+}
 
 // Simulation Speed changer
-speedSlider.addEventListener('input', (e) => {
-  simSpeed = parseInt(e.target.value);
-  speedLabel.textContent = `${simSpeed}x`;
-});
+if (speedSlider) {
+  speedSlider.addEventListener('input', (e) => {
+    simSpeed = parseInt(e.target.value);
+    speedLabel.textContent = `${simSpeed}x`;
+  });
+}
 
 // Play/Pause simulation loop
-btnToggleSim.addEventListener('click', () => {
-  isSimulating = !isSimulating;
+if (btnToggleSim) {
+  btnToggleSim.addEventListener('click', () => {
+    isSimulating = !isSimulating;
 
-  if (isSimulating) {
-    simBtnText.textContent = "Pause Sim";
-    btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
-    simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
-    addTelegramMessage("SmartTank Bot", "▶️ Simulation running. Water consumption simulated.");
-  } else {
-    simBtnText.textContent = "Resume Sim";
-    btnToggleSim.className = "flex-1 bg-accent-orange text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
-    simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
-    addTelegramMessage("SmartTank Bot", "⏸️ Simulation paused. Water level static.");
-  }
-});
+    if (isSimulating) {
+      simBtnText.textContent = "Pause Sim";
+      btnToggleSim.className = "flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+      simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
+      addTelegramMessage("SmartTank Bot", "▶️ Simulation running. Water consumption simulated.");
+    } else {
+      simBtnText.textContent = "Resume Sim";
+      btnToggleSim.className = "flex-1 bg-accent-orange text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95";
+      simPlayIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>`;
+      addTelegramMessage("SmartTank Bot", "⏸️ Simulation paused. Water level static.");
+    }
+  });
+}
 
 // Restart ESP32 Dev board click
-btnResetHw.addEventListener('click', () => {
-  resetESP32();
-});
+if (btnResetHw) {
+  btnResetHw.addEventListener('click', () => {
+    resetESP32();
+  });
+}
 
 // Sensor Fault override toggle
-sensorFaultToggle.addEventListener('change', (e) => {
-  sensorFault = e.target.checked;
+if (sensorFaultToggle) {
+  sensorFaultToggle.addEventListener('change', (e) => {
+    sensorFault = e.target.checked;
 
-  if (sensorFault) {
-    addTelegramMessage("SmartTank Bot", "🚨 <b>SYSTEM ERROR ALERT!</b> Ultrasonic sensor connection lost or reading invalid distance. Alarm active.");
-    if (pumpState) {
-      pumpState = false;
-      isFilling = false;
-      restoreSheddedDevices();
-      addTelegramMessage("SmartTank Bot", "🔌 Emergency shutdown: Pump relay forced OFF to prevent dry-running or overflow.");
+    if (sensorFault) {
+      addTelegramMessage("SmartTank Bot", "🚨 <b>SYSTEM ERROR ALERT!</b> Ultrasonic sensor connection lost or reading invalid distance. Alarm active.");
+      if (pumpState) {
+        pumpState = false;
+        isFilling = false;
+        restoreSheddedDevices();
+        addTelegramMessage("SmartTank Bot", "🔌 Emergency shutdown: Pump relay forced OFF to prevent dry-running or overflow.");
+      }
+      currentFlowStep = 1; // reset flow
+    } else {
+      addTelegramMessage("SmartTank Bot", "✅ Sensor connection restored. Resuming normal operations.");
     }
-    currentFlowStep = 1; // reset flow
-  } else {
-    addTelegramMessage("SmartTank Bot", "✅ Sensor connection restored. Resuming normal operations.");
-  }
-  updateDashboardUI();
-});
+    updateDashboardUI();
+  });
+}
 
 // ----------------------------------------------------
 // SIMULATION MAIN INTERVAL LOOP (Run every 1s)
@@ -948,20 +1042,45 @@ sensorFaultToggle.addEventListener('change', (e) => {
 function simulationTick() {
   if (isBooting) return;
 
-  uptimeSeconds++;
-
-  // Uptime visual string format
-  const minutes = Math.floor(uptimeSeconds / 60);
-  const secs = uptimeSeconds % 60;
-  espUptimeVal.textContent = `${minutes}m ${secs}s`;
-
-  // Blink status LED on ESP32 board to show active loop
-  esp32StatusLed.classList.add('bg-cyan-500');
-  setTimeout(() => {
-    if (!isBooting) {
-      esp32StatusLed.className = "w-2 h-2 rounded-full bg-cyan-400";
+  // Heartbeat timeout check when in Online Mode
+  if (useFirebaseData) {
+    const elapsed = Date.now() - lastEspHeartbeat;
+    // If connected but haven't seen heartbeat in 10s (and it was active before)
+    if (isEspConnected && lastEspHeartbeat !== 0 && elapsed > 10000) {
+      isEspConnected = false;
+      if (espStatusText && espStatusDot) {
+        espStatusText.textContent = "Offline";
+        espStatusText.className = "text-xs font-bold text-status-red";
+        espStatusDot.className = "w-2 h-2 rounded-full bg-status-red";
+      }
+      addTelegramMessage("SmartTank Bot", "🔌 Perangkat ESP32 terputus (Offline). Hubungkan daya alat kembali.");
+      updateDashboardUI();
     }
-  }, 150);
+  }
+
+  // Uptime & Status LED updates (only if online or offline simulation mode)
+  if (isEspConnected || !useFirebaseData) {
+    uptimeSeconds++;
+
+    // Uptime visual string format
+    const minutes = Math.floor(uptimeSeconds / 60);
+    const secs = uptimeSeconds % 60;
+    espUptimeVal.textContent = `${minutes}m ${secs}s`;
+
+    // Blink status LED on ESP32 board to show active loop
+    esp32StatusLed.classList.add('bg-cyan-500');
+    setTimeout(() => {
+      if (!isBooting) {
+        esp32StatusLed.className = "w-2 h-2 rounded-full bg-cyan-400";
+      }
+    }, 150);
+
+    // Check and log sensor values periodically
+    checkAndLogData();
+  } else {
+    espUptimeVal.textContent = "0m 0s";
+    esp32StatusLed.className = "w-2 h-2 rounded-full bg-slate-700";
+  }
 
   // If simulating, sensor has no fault, and we are NOT using real Firebase data, evaluate state machine step-by-step
   if (isSimulating && !sensorFault && !useFirebaseData) {
@@ -1044,20 +1163,56 @@ updateDashboardUI();
 // LISTEN TO FIREBASE FOR REAL-TIME SINKRONISASI
 // ----------------------------------------------------
 
-// Flag to indicate if real ESP32 connection is active
-let useFirebaseData = true; 
+// Flag to indicate if real ESP32 connection is active 
 
 const firebaseSyncToggle = document.getElementById('firebase-sync-toggle');
 if (firebaseSyncToggle) {
   useFirebaseData = firebaseSyncToggle.checked;
+  if (!useFirebaseData) {
+    isEspConnected = true; // Offline simulated mode starts as connected
+  }
+
   firebaseSyncToggle.addEventListener('change', (e) => {
     useFirebaseData = e.target.checked;
     if (useFirebaseData) {
+      isEspConnected = false;
+      lastEspHeartbeat = 0; // Reset
+      if (espStatusText && espStatusDot) {
+        espStatusText.textContent = "Connecting...";
+        espStatusText.className = "text-xs font-bold text-amber-500";
+        espStatusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+      }
       addTelegramMessage("SmartTank Bot", "🌐 Firebase Real-time Sync diaktifkan. Menghubungkan ke ESP32...");
-      // Pull initial state once
-      database.ref().once('value').then((snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
+    } else {
+      isEspConnected = true;
+      if (espStatusText && espStatusDot) {
+        espStatusText.textContent = "Offline (Simulated)";
+        espStatusText.className = "text-xs font-bold text-blue-500";
+        espStatusDot.className = "w-2 h-2 rounded-full bg-blue-500 animate-ping";
+      }
+      addTelegramMessage("SmartTank Bot", "🔌 Firebase Sync dinonaktifkan. Beralih ke Mode Panel Offline.");
+      updateDashboardUI();
+    }
+  });
+}
+
+// Listen to ESP32 Heartbeat to determine connection status
+database.ref('esp32/heartbeat').on('value', (snapshot) => {
+  if (snapshot.exists() && useFirebaseData) {
+    lastEspHeartbeat = Date.now();
+    if (!isEspConnected) {
+      isEspConnected = true;
+      if (espStatusText && espStatusDot) {
+        espStatusText.textContent = "Connected";
+        espStatusText.className = "text-xs font-bold text-status-green";
+        espStatusDot.className = "w-2 h-2 rounded-full bg-status-green animate-ping";
+      }
+      addTelegramMessage("SmartTank Bot", "🌐 Perangkat ESP32 terdeteksi Online. Sinkronisasi aktif.");
+      
+      // Pull initial state once upon connecting
+      database.ref().once('value').then((snap) => {
+        if (snap.exists()) {
+          const data = snap.val();
           if (data.water && data.water.level !== undefined) waterLevel = parseFloat(data.water.level);
           if (data.device) {
             if (data.device.pump !== undefined) pumpState = data.device.pump;
@@ -1081,11 +1236,9 @@ if (firebaseSyncToggle) {
           updateDashboardUI();
         }
       });
-    } else {
-      addTelegramMessage("SmartTank Bot", "🔌 Firebase Sync dinonaktifkan. Beralih ke Mode Simulator Offline.");
     }
-  });
-}
+  }
+});
 
 database.ref('water/level').on('value', (snapshot) => {
   if (snapshot.exists() && useFirebaseData) {
@@ -1152,4 +1305,298 @@ database.ref('telegram/last_message').on('value', (snapshot) => {
     addTelegramMessage("SmartTank Bot", text, true);
   }
 });
+
+// ----------------------------------------------------
+// SENSOR DATA LOGGER & EXPORTER LOGIC
+// ----------------------------------------------------
+
+function renderHistoryTable() {
+  const tbody = document.getElementById('history-table-body');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  
+  if (sensorHistoryList.length === 0) {
+    tbody.innerHTML = `
+      <tr id="history-empty-row">
+        <td colspan="9" class="px-6 py-8 text-center text-gray-400 italic">
+          Belum ada data sensor tercatat. Data akan otomatis masuk setiap 5 detik saat alat aktif.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  // Render top 50 items for DOM performance
+  const itemsToRender = sensorHistoryList.slice(0, 50);
+  
+  const getDeviceBadgeClass = (state) => {
+    if (state === 'ON') return 'bg-status-green/10 text-status-green';
+    if (state === 'SHEDDED') return 'bg-status-red/10 text-status-red animate-pulse';
+    return 'bg-gray-100 text-gray-400';
+  };
+
+  itemsToRender.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-orange-50/20 transition-colors border-b border-orange-50/40";
+    
+    let badgeClass = "bg-status-green/10 text-status-green";
+    if (item.status === 'ERROR') badgeClass = "bg-status-red/10 text-status-red animate-pulse";
+    else if (item.status === 'CRITICAL LOW') badgeClass = "bg-status-red/10 text-status-red";
+    else if (item.status === 'MID LEVEL') badgeClass = "bg-accent-orange/10 text-accent-orange";
+    
+    tr.innerHTML = `
+      <td class="px-6 py-3 font-mono text-gray-500">${item.timestamp}</td>
+      <td class="px-6 py-3 font-bold">${item.waterLevel}</td>
+      <td class="px-6 py-3 font-mono">${item.voltage}</td>
+      <td class="px-6 py-3 font-bold ${item.pumpState === 'ON' ? 'text-status-green' : 'text-gray-400'}">${item.pumpState}</td>
+      <td class="px-6 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${getDeviceBadgeClass(item.oledState || 'OFF')}">${item.oledState || 'OFF'}</span>
+      </td>
+      <td class="px-6 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${getDeviceBadgeClass(item.fanState || 'OFF')}">${item.fanState || 'OFF'}</span>
+      </td>
+      <td class="px-6 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${getDeviceBadgeClass(item.led1State || 'OFF')}">${item.led1State || 'OFF'}</span>
+      </td>
+      <td class="px-6 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${getDeviceBadgeClass(item.led2State || 'OFF')}">${item.led2State || 'OFF'}</span>
+      </td>
+      <td class="px-6 py-3">
+        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${item.status}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+let lastRecordedPump = null;
+
+function checkAndLogData() {
+  if (isBooting) return;
+  
+  // Log every 5 seconds OR immediately if pump state changes
+  const shouldLog = (uptimeSeconds % 5 === 0) || (pumpState !== lastRecordedPump);
+  
+  if (shouldLog) {
+    lastRecordedPump = pumpState;
+    
+    const now = new Date();
+    const timestamp = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour12: false });
+    const displayLevel = sensorFault ? 'ERR' : `${Math.round(waterLevel)}%`;
+    const displayVoltage = `${calculateTotalLoad()}V`;
+    const displayPump = pumpState ? 'ON' : 'OFF';
+    
+    let displayStatus = 'NORMAL';
+    if (sensorFault) displayStatus = 'ERROR';
+    else if (waterLevel <= 20) displayStatus = 'CRITICAL LOW';
+    else if (waterLevel <= 50) displayStatus = 'MID LEVEL';
+    
+    const getDeviceStatusText = (deviceKey) => {
+      const isShedded = !relayStates[deviceKey] && userSwitches[deviceKey];
+      if (isShedded) return 'SHEDDED';
+      return userSwitches[deviceKey] ? 'ON' : 'OFF';
+    };
+
+    const oledVal = getDeviceStatusText('oled');
+    const fanVal = getDeviceStatusText('fan');
+    const led1Val = getDeviceStatusText('led1');
+    const led2Val = getDeviceStatusText('led2');
+    
+    const newRecord = {
+      timestamp,
+      waterLevel: displayLevel,
+      voltage: displayVoltage,
+      pumpState: displayPump,
+      oledState: oledVal,
+      fanState: fanVal,
+      led1State: led1Val,
+      led2State: led2Val,
+      status: displayStatus
+    };
+    
+    // Unshift to add to beginning
+    sensorHistoryList.unshift(newRecord);
+    
+    // Cap memory storage at 1000 items
+    if (sensorHistoryList.length > 1000) {
+      sensorHistoryList.pop();
+    }
+    
+    try {
+      localStorage.setItem('sensor_history', JSON.stringify(sensorHistoryList));
+    } catch (e) {
+      console.error("Failed to save history to localStorage:", e);
+    }
+    
+    renderHistoryTable();
+  }
+}
+
+// ----------------------------------------------------
+// CUSTOM DIALOG OVERLAY (PROMISE-BASED ALERT & CONFIRM)
+// ----------------------------------------------------
+function showCustomDialog({ 
+  type = 'confirm', 
+  title = 'Konfirmasi', 
+  message = '', 
+  confirmText = 'OK', 
+  cancelText = 'Batal', 
+  iconType = 'warning' 
+}) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('custom-dialog-overlay');
+    const box = document.getElementById('custom-dialog-box');
+    const titleEl = document.getElementById('custom-dialog-title');
+    const msgEl = document.getElementById('custom-dialog-message');
+    const btnCancel = document.getElementById('custom-dialog-btn-cancel');
+    const btnConfirm = document.getElementById('custom-dialog-btn-confirm');
+    const iconBg = document.getElementById('custom-dialog-icon-bg');
+    const iconEl = document.getElementById('custom-dialog-icon');
+
+    if (!overlay || !box || !titleEl || !msgEl || !btnCancel || !btnConfirm || !iconBg || !iconEl) {
+      if (type === 'confirm') {
+        resolve(confirm(message));
+      } else {
+        alert(message);
+        resolve(true);
+      }
+      return;
+    }
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    btnConfirm.textContent = confirmText;
+    btnCancel.textContent = cancelText;
+
+    if (type === 'alert') {
+      btnCancel.classList.add('hidden');
+      btnConfirm.className = "flex-1 bg-accent-brown hover:bg-opacity-95 text-white py-3 rounded-2xl text-xs font-bold transition active:scale-95 shadow-sm shadow-accent-brown/10 text-center";
+    } else {
+      btnCancel.classList.remove('hidden');
+      btnConfirm.className = "flex-1 bg-status-red hover:bg-opacity-95 text-white py-3 rounded-2xl text-xs font-bold transition active:scale-95 shadow-sm shadow-status-red/10 text-center";
+    }
+
+    if (iconType === 'warning') {
+      iconBg.className = "p-3.5 rounded-2xl bg-red-50 text-status-red";
+      iconEl.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />`;
+    } else if (iconType === 'info') {
+      iconBg.className = "p-3.5 rounded-2xl bg-blue-50 text-status-blue";
+      iconEl.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+    }
+
+    overlay.classList.remove('pointer-events-none', 'opacity-0');
+    overlay.classList.add('opacity-100');
+    
+    box.classList.remove('scale-95', 'opacity-0');
+    box.classList.add('scale-100', 'opacity-100');
+
+    const closeDialog = (value) => {
+      overlay.classList.add('pointer-events-none', 'opacity-0');
+      overlay.classList.remove('opacity-100');
+      
+      box.classList.add('scale-95', 'opacity-0');
+      box.classList.remove('scale-100', 'opacity-100');
+
+      btnConfirm.removeEventListener('click', onConfirmClick);
+      btnCancel.removeEventListener('click', onCancelClick);
+      overlay.removeEventListener('click', onOverlayClick);
+
+      resolve(value);
+    };
+
+    function onConfirmClick(e) {
+      e.stopPropagation();
+      closeDialog(true);
+    }
+
+    function onCancelClick(e) {
+      e.stopPropagation();
+      closeDialog(false);
+    }
+
+    function onOverlayClick(e) {
+      if (e.target === overlay) {
+        closeDialog(false);
+      }
+    }
+
+    btnConfirm.addEventListener('click', onConfirmClick);
+    btnCancel.addEventListener('click', onCancelClick);
+    overlay.addEventListener('click', onOverlayClick);
+  });
+}
+
+async function exportToCSV() {
+  if (sensorHistoryList.length === 0) {
+    await showCustomDialog({
+      type: 'alert',
+      title: 'Tidak Ada Data',
+      message: 'Belum ada data sensor tercatat untuk diekspor!',
+      confirmText: 'Mengerti',
+      iconType: 'info'
+    });
+    return;
+  }
+  
+  let csvRows = [];
+  csvRows.push("Timestamp,Water Level,Voltage Load,Pump State,OLED TV State,Cooling Fan State,LED Room 1 State,LED Room 2 State,Status");
+  
+  const exportList = [...sensorHistoryList].reverse();
+  
+  exportList.forEach(item => {
+    csvRows.push(`"${item.timestamp}","${item.waterLevel}","${item.voltage}","${item.pumpState}","${item.oledState || 'OFF'}","${item.fanState || 'OFF'}","${item.led1State || 'OFF'}","${item.led2State || 'OFF'}","${item.status}"`);
+  });
+  
+  const csvString = csvRows.join("\n");
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  
+  const now = new Date();
+  const dateStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
+  const timeStr = String(now.getHours()).padStart(2, '0') + "_" + String(now.getMinutes()).padStart(2, '0');
+  
+  link.setAttribute("download", `sensor_data_log_${dateStr}_${timeStr}.csv`);
+  document.body.appendChild(link);
+  
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+async function clearHistory() {
+  const confirmed = await showCustomDialog({
+    type: 'confirm',
+    title: 'Hapus Riwayat Sensor',
+    message: 'Apakah Anda yakin ingin menghapus semua data riwayat sensor? Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Ya, Hapus',
+    cancelText: 'Batal',
+    iconType: 'warning'
+  });
+
+  if (confirmed) {
+    sensorHistoryList = [];
+    try {
+      localStorage.removeItem('sensor_history');
+    } catch (e) {}
+    renderHistoryTable();
+  }
+}
+
+// Initial render of existing logs on page load
+renderHistoryTable();
+
+// Event Listeners for controls
+const btnExportCsv = document.getElementById('btn-export-csv');
+if (btnExportCsv) {
+  btnExportCsv.addEventListener('click', exportToCSV);
+}
+
+const btnClearHistory = document.getElementById('btn-clear-history');
+if (btnClearHistory) {
+  btnClearHistory.addEventListener('click', clearHistory);
+}
 

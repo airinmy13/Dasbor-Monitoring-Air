@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Smart Water Tank Dashboard - IoT Simulator</title>
+  <title>Smart Water Tank Dashboard - IoT Control Panel</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <!-- Google Fonts for professional typography -->
@@ -140,7 +140,7 @@
         data-purpose="top-header">
         <div>
           <h2 class="text-3xl font-extrabold text-accent-brown tracking-tight">Smart Water Tank Dashboard</h2>
-          <p class="text-accent-brown/60 text-sm">ESP32 Load-Shedding & Tank Monitoring Simulator</p>
+          <p class="text-accent-brown/60 text-sm">ESP32 Load-Shedding & Tank Monitoring System</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-4 mt-4 md:mt-0">
@@ -223,7 +223,7 @@
                 <!-- Water Level representation -->
                 <div id="tank-water-fill"
                   class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-500"
-                  style="height: 75%;">
+                  style="height: 0%;">
                   <div
                     class="water-wave absolute top-0 left-0 w-[200%] h-4 bg-blue-300/40 opacity-50 -translate-y-full">
                   </div>
@@ -252,17 +252,12 @@
                 <div class="bg-orange-50/40 p-4 rounded-2xl border border-orange-100/30">
                   <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Water Volume</p>
                   <div class="flex items-baseline space-x-0.5">
-                    <span id="water-pct-text" class="text-5xl font-black text-accent-brown tracking-tighter">75</span>
+                    <span id="water-pct-text" class="text-5xl font-black text-accent-brown tracking-tighter">---</span>
                     <span class="text-xl font-bold text-accent-brown">%</span>
                   </div>
                   <div id="water-status-badge"
-                    class="mt-2 flex items-center bg-status-green/10 text-status-green px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path clip-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        fill-rule="evenodd"></path>
-                    </svg>
-                    NORMAL
+                    class="mt-2 flex items-center bg-gray-100 text-gray-400 px-2 py-0.5 rounded-lg w-fit text-[10px] font-extrabold tracking-wider">
+                    OFFLINE
                   </div>
                 </div>
 
@@ -277,13 +272,13 @@
                     </div>
                     <div>
                       <p class="text-[9px] font-bold text-gray-400 uppercase">Ultrasonic Distance</p>
-                      <p id="ultrasonic-dist" class="text-xs font-extrabold text-accent-brown">5.0 cm</p>
+                      <p id="ultrasonic-dist" class="text-xs font-extrabold text-accent-brown">--- cm</p>
                     </div>
                   </div>
 
                   <div
                     class="flex items-center space-x-3 bg-gray-50/50 border border-gray-100 p-2.5 rounded-xl shadow-xs">
-                    <div id="sensor-status-icon" class="p-2 bg-green-50 rounded-lg text-green-500">
+                    <div id="sensor-status-icon" class="p-2 bg-red-50 rounded-lg text-status-red">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
@@ -292,7 +287,7 @@
                     </div>
                     <div>
                       <p class="text-[9px] font-bold text-gray-400 uppercase">Sensor Condition</p>
-                      <p id="sensor-status-text" class="text-xs font-bold text-status-green">ONLINE</p>
+                      <p id="sensor-status-text" class="text-xs font-bold text-status-red">OFFLINE</p>
                     </div>
                   </div>
                 </div>
@@ -302,8 +297,8 @@
 
           <!-- Retro Physical LCD Display Mockup -->
           <div class="mt-6">
-            <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Simulated I2C LCD
-              (20x4) Screen</div>
+            <div class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Hardware I2C LCD
+              (20x4) Screen Monitor</div>
             <div
               class="bg-[#002b36] border-4 border-[#073642] p-4 rounded-xl shadow-inner glow-lcd text-cyan-400 font-mono text-[13px] leading-relaxed relative overflow-hidden h-28 flex flex-col justify-center">
               <!-- Glare/Glass Effect Overlay -->
@@ -328,7 +323,7 @@
           <div>
             <div class="flex items-center space-x-2 mb-4">
               <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
-              <h3 class="font-bold text-base uppercase tracking-wide">2. Pump & Sim Control</h3>
+              <h3 class="font-bold text-base uppercase tracking-wide">2. Pump & System Control</h3>
             </div>
 
             <!-- Pump Relay Visual Badge -->
@@ -368,67 +363,7 @@
               </div>
             </div>
 
-            <!-- Simulation controls -->
-            <div class="border-t border-gray-100 pt-4 space-y-3.5">
-              <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Simulator Controls</h4>
 
-              <!-- Play/Pause & Reset buttons -->
-              <div class="flex items-center gap-2">
-                <button id="btn-toggle-sim"
-                  class="flex-1 bg-accent-brown text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 hover:bg-opacity-95 transition shadow-sm active:scale-95">
-                  <svg class="w-3.5 h-3.5" id="sim-play-icon" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-                      clip-rule="evenodd"></path>
-                  </svg>
-                  <span id="sim-btn-text">Pause Sim</span>
-                </button>
-                <button id="btn-reset-hw"
-                  class="bg-gray-100 hover:bg-gray-200/80 text-gray-700 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 active:scale-95">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-                  </svg>
-                  <span>Reset</span>
-                </button>
-              </div>
-
-              <!-- Water Level Slider Override -->
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <label for="override-water-slider" class="text-[9px] font-bold text-gray-400 uppercase">Override Water
-                    Level</label>
-                  <span id="override-pct-label" class="text-[10px] font-bold text-accent-brown">75%</span>
-                </div>
-                <input type="range" id="override-water-slider" min="0" max="100" value="75"
-                  class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-orange focus:outline-none">
-              </div>
-
-              <!-- Speed Selector slider -->
-              <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                  <label for="sim-speed-slider" class="text-[9px] font-bold text-gray-400 uppercase">Sim Speed</label>
-                  <span id="sim-speed-label" class="text-[10px] font-bold text-accent-brown">2x</span>
-                </div>
-                <input type="range" id="sim-speed-slider" min="1" max="5" value="2"
-                  class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-brown focus:outline-none">
-              </div>
-
-              <!-- Firebase Sync toggle -->
-              <label class="flex items-center space-x-2.5 cursor-pointer select-none">
-                <input type="checkbox" id="firebase-sync-toggle" checked
-                  class="w-4 h-4 rounded text-accent-brown border-gray-300 focus:ring-accent-brown">
-                <span class="text-xs font-medium text-gray-700">Hubungkan Alat (Firebase Sync)</span>
-              </label>
-
-              <!-- Sensor fault trigger -->
-              <label class="flex items-center space-x-2.5 cursor-pointer select-none">
-                <input type="checkbox" id="sensor-fault-toggle"
-                  class="w-4 h-4 rounded text-status-red border-gray-300 focus:ring-status-red">
-                <span class="text-xs font-medium text-gray-500">Simulate Sensor Fault</span>
-              </label>
-            </div>
           </div>
         </section>
         <!-- END: Pump Control -->
@@ -447,7 +382,7 @@
               <div>
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Load Current</p>
                 <div class="flex items-baseline space-x-0.5">
-                  <span id="total-load-text" class="text-5xl font-black text-accent-brown tracking-tighter">18</span>
+                  <span id="total-load-text" class="text-5xl font-black text-accent-brown tracking-tighter">---</span>
                   <span class="text-xl font-bold text-accent-brown">V</span>
                 </div>
               </div>
@@ -465,20 +400,20 @@
                     stroke-width="10" stroke-dasharray="125.6" stroke-dashoffset="30"></path>
 
                   <!-- Dynamic active load arc -->
-                  <path id="gauge-load-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#22c55e"
-                    stroke-linecap="round" stroke-width="10" stroke-dasharray="125.6" stroke-dashoffset="75.36"
+                  <path id="gauge-load-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#cbd5e1"
+                    stroke-linecap="round" stroke-width="10" stroke-dasharray="125.6" stroke-dashoffset="125.6"
                     class="transition-all duration-500"></path>
 
                   <!-- Gauge needle -->
                   <line x1="50" y1="50" x2="50" y2="14" stroke="#4a3728" stroke-width="3" stroke-linecap="round"
                     id="gauge-needle" class="origin-bottom transition-transform duration-500"
-                    style="transform: rotate(18deg);"></line>
+                    style="transform: rotate(-90deg);"></line>
                 </svg>
 
                 <!-- Indicator label -->
                 <div id="energy-status-badge"
-                  class="absolute bottom-0 left-1/2 -translate-x-1/2 bg-status-green/10 text-status-green px-3 py-0.5 rounded-full text-[10px] font-black border border-status-green/20 transition-all duration-300">
-                  SAFE
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 bg-gray-100 text-gray-400 px-3 py-0.5 rounded-full text-[10px] font-black border border-gray-200 transition-all duration-300">
+                  OFFLINE
                 </div>
               </div>
             </div>
@@ -502,7 +437,7 @@
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                  <span id="device-status-oled" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <span id="device-status-oled" class="text-[10px] font-extrabold text-status-red">OFFLINE</span>
                   <input type="checkbox" id="toggle-oled" checked
                     class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
                 </div>
@@ -525,7 +460,7 @@
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                  <span id="device-status-fan" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <span id="device-status-fan" class="text-[10px] font-extrabold text-status-red">OFFLINE</span>
                   <input type="checkbox" id="toggle-fan" checked
                     class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
                 </div>
@@ -548,7 +483,7 @@
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                  <span id="device-status-led1" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <span id="device-status-led1" class="text-[10px] font-extrabold text-status-red">OFFLINE</span>
                   <input type="checkbox" id="toggle-led1" checked
                     class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
                 </div>
@@ -571,7 +506,7 @@
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                  <span id="device-status-led2" class="text-[10px] font-extrabold text-status-green">ON</span>
+                  <span id="device-status-led2" class="text-[10px] font-extrabold text-status-red">OFFLINE</span>
                   <input type="checkbox" id="toggle-led2" checked
                     class="w-9 h-5 bg-gray-200 rounded-full appearance-none cursor-pointer checked:bg-accent-brown relative before:content-[''] before:absolute before:h-4 before:w-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 before:transition-all checked:before:translate-x-4 focus:outline-none">
                 </div>
@@ -604,22 +539,19 @@
 
           <!-- Safety Alert Note box -->
           <div id="power-alert-box"
-            class="mt-4 p-3 bg-green-50 rounded-2xl flex items-center justify-between border border-green-100 transition-all duration-300">
+            class="mt-4 p-3 bg-gray-50 rounded-2xl flex items-center justify-between border border-gray-100 transition-all duration-300">
             <div class="flex items-center space-x-2.5">
-              <div id="power-alert-icon-container" class="p-2 bg-green-500 rounded-lg text-white">
+              <div id="power-alert-icon-container" class="p-2 bg-gray-400 rounded-lg text-white">
                 <svg id="power-alert-icon" class="w-4.5 h-4.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path clip-rule="evenodd"
-                    d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 4.946-2.597 9.29-6.518 11.771a1.304 1.304 0 01-1.464 0C6.012 16.29 3.415 11.946 3.415 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    fill-rule="evenodd"></path>
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                 </svg>
               </div>
               <div>
                 <p class="text-[9px] font-bold text-gray-400 uppercase">System Power Load</p>
-                <p id="power-alert-title" class="text-xs font-bold text-status-green uppercase">SAFE STATUS</p>
+                <p id="power-alert-title" class="text-xs font-bold text-gray-400 uppercase">SYSTEM OFFLINE</p>
               </div>
             </div>
-            <p id="power-alert-desc" class="text-[9px] text-gray-500 max-w-[130px] text-right leading-tight">Total load
-              is safe (<= 25V).</p>
+            <p id="power-alert-desc" class="text-[9px] text-gray-500 max-w-[130px] text-right leading-tight">Waiting for ESP32 device to connect.</p>
           </div>
         </section>
         <!-- END: Energy Management -->
@@ -635,7 +567,7 @@
           data-purpose="device-grid">
           <div class="flex items-center space-x-2 mb-4">
             <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
-            <h3 class="font-bold text-base uppercase tracking-wide">4. Physical Hardware Mockup Simulation</h3>
+            <h3 class="font-bold text-base uppercase tracking-wide">4. Physical Hardware Status Monitor</h3>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -863,12 +795,71 @@
       </div>
       <!-- END: Second Row Grid -->
 
+      <!-- BEGIN: Sensor Data History Log -->
+      <section id="sensor-history" class="bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 mb-6"
+        data-purpose="sensor-history">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
+            <h3 class="font-bold text-base uppercase tracking-wide">6. Sensor Data History Log</h3>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Clear Button -->
+            <button id="btn-clear-history"
+              class="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition active:scale-95">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Clear Data
+            </button>
+            <!-- Export Button -->
+            <button id="btn-export-csv"
+              class="bg-accent-brown hover:bg-opacity-95 text-white rounded-xl px-4 py-2 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export to CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto border border-orange-100/50 rounded-2xl max-h-[350px] custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr
+                class="bg-orange-50/50 border-b border-orange-100 text-[10px] font-extrabold text-gray-500 uppercase tracking-wider sticky top-0 bg-white">
+                <th class="px-6 py-3.5">Timestamp</th>
+                <th class="px-6 py-3.5">Water Level</th>
+                <th class="px-6 py-3.5">Voltage Load</th>
+                <th class="px-6 py-3.5">Pump State</th>
+                <th class="px-6 py-3.5">OLED TV</th>
+                <th class="px-6 py-3.5">Cooling Fan</th>
+                <th class="px-6 py-3.5">LED Room 1</th>
+                <th class="px-6 py-3.5">LED Room 2</th>
+                <th class="px-6 py-3.5">Status</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-orange-50/40 text-xs font-medium text-gray-700">
+              <!-- Empty state row by default -->
+              <tr id="history-empty-row">
+                <td colspan="9" class="px-6 py-8 text-center text-gray-400 italic">
+                  Belum ada data sensor tercatat. Data akan otomatis masuk setiap 5 detik saat alat aktif.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- END: Sensor Data History Log -->
+
       <!-- BEGIN: Automatic System Flow Chart -->
       <section id="system-flow" class="bg-card-bg p-6 rounded-3xl shadow-sm border border-orange-100/80 mb-6"
         data-purpose="system-flow">
         <div class="flex items-center space-x-2 mb-8">
           <div class="w-2 h-6 bg-accent-orange rounded-full"></div>
-          <h3 class="font-bold text-base uppercase tracking-wide">6. AUTOMATIC SYSTEM FLOW (STATE STEPPER)</h3>
+          <h3 class="font-bold text-base uppercase tracking-wide">7. AUTOMATIC SYSTEM FLOW (STATE STEPPER)</h3>
         </div>
 
         <!-- Horizontal Flowchart Steps -->
@@ -1064,6 +1055,47 @@
       <!-- END: Footer -->
     </main>
   </div>
+
+  <!-- BEGIN: Custom Modal Dialog -->
+  <div id="custom-dialog-overlay"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-[#7c4d3a]/30 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div id="custom-dialog-box"
+      class="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-orange-100/40 transform scale-95 opacity-0 transition-all duration-300">
+
+      <!-- Icon Container -->
+      <div class="flex justify-center mb-4">
+        <div id="custom-dialog-icon-bg" class="p-3.5 rounded-2xl bg-orange-50 text-accent-brown">
+          <svg id="custom-dialog-icon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+            </path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Title & Message -->
+      <div class="text-center mb-6">
+        <h4 id="custom-dialog-title" class="text-lg font-extrabold text-accent-brown tracking-tight">Konfirmasi</h4>
+        <p id="custom-dialog-message" class="text-sm text-gray-500 mt-2 font-medium leading-relaxed">Apakah Anda yakin?
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3">
+        <button id="custom-dialog-btn-cancel"
+          class="flex-1 bg-gray-100 hover:bg-gray-200/80 text-text-primary py-3 rounded-2xl text-xs font-bold transition active:scale-95">
+          Batal
+        </button>
+        <button id="custom-dialog-btn-confirm"
+          class="flex-1 bg-status-red hover:bg-opacity-95 text-white py-3 rounded-2xl text-xs font-bold transition active:scale-95 shadow-sm shadow-status-red/10">
+          Ya, Hapus
+        </button>
+      </div>
+
+    </div>
+  </div>
+  <!-- END: Custom Modal Dialog -->
 
   <script src="script.js"></script>
 </body>
