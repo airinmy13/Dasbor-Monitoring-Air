@@ -21,7 +21,7 @@ const CHAT_ID = "6351746072"; // Ganti dengan Chat ID asli Anda jika bukan 12345
 // SIMULATION STATE VARIABLES
 // ----------------------------------------------------
 let waterLevel = 75.0;            // Water volume (0% to 100%)
-let isSimulating = true;          // Flag for active decay/filling simulation
+let isSimulating = false;         // Flag for active decay/filling simulation (disabled by default)
 let simSpeed = 2;                 // Speed multiplier (1 to 5)
 let isFilling = false;            // System state: in monitoring vs. in filling phase
 let pumpState = false;            // Pump relay state (ON/OFF)
@@ -34,6 +34,8 @@ let isBooting = false;            // Booting lock flag
 let lastEspHeartbeat = 0;         // Timestamp of the last received heartbeat from ESP32
 let isEspConnected = false;       // Connection status of the ESP32 hardware
 let useFirebaseData = true;       // Flag to indicate if real ESP32 connection is active
+let systemVoltage = 0;            // Stores real-time voltage from Firebase
+let lastHeartbeatCounter = null;  // Keeps track of the last heartbeat counter to confirm live updates
 
 // Voltages definition
 const PUMP_V = 12;
@@ -338,7 +340,7 @@ function runBootSequence() {
     setTimeout(runBootSequence, 750);
   } else {
     isBooting = false;
-    isSimulating = true;
+    isSimulating = false;
     if (btnToggleSim) btnToggleSim.disabled = false;
     if (overrideSlider) overrideSlider.disabled = false;
     if (btnResetHw) btnResetHw.disabled = false;
@@ -658,7 +660,7 @@ function updateDashboardUI() {
   systemModeText.textContent = !online ? "Offline Mode" : (isFilling ? "Filling Mode" : "Monitoring Mode");
 
   // 3. Energy Management Stats
-  const totalLoad = online ? calculateTotalLoad() : 0;
+  const totalLoad = online ? (useFirebaseData ? systemVoltage : calculateTotalLoad()) : 0;
   totalLoadText.textContent = online ? totalLoad : "---";
 
   // SVG Gauge math
@@ -1199,43 +1201,56 @@ if (firebaseSyncToggle) {
 // Listen to ESP32 Heartbeat to determine connection status
 database.ref('esp32/heartbeat').on('value', (snapshot) => {
   if (snapshot.exists() && useFirebaseData) {
-    lastEspHeartbeat = Date.now();
-    if (!isEspConnected) {
-      isEspConnected = true;
-      if (espStatusText && espStatusDot) {
-        espStatusText.textContent = "Connected";
-        espStatusText.className = "text-xs font-bold text-status-green";
-        espStatusDot.className = "w-2 h-2 rounded-full bg-status-green animate-ping";
-      }
-      addTelegramMessage("SmartTank Bot", "🌐 Perangkat ESP32 terdeteksi Online. Sinkronisasi aktif.");
-      
-      // Pull initial state once upon connecting
-      database.ref().once('value').then((snap) => {
-        if (snap.exists()) {
-          const data = snap.val();
-          if (data.water && data.water.level !== undefined) waterLevel = parseFloat(data.water.level);
-          if (data.device) {
-            if (data.device.pump !== undefined) pumpState = data.device.pump;
-            if (data.device.oled !== undefined) {
-              relayStates.oled = data.device.oled;
-              userSwitches.oled = data.device.oled;
-            }
-            if (data.device.fan !== undefined) {
-              relayStates.fan = data.device.fan;
-              userSwitches.fan = data.device.fan;
-            }
-            if (data.device.led1 !== undefined) {
-              relayStates.led1 = data.device.led1;
-              userSwitches.led1 = data.device.led1;
-            }
-            if (data.device.led2 !== undefined) {
-              relayStates.led2 = data.device.led2;
-              userSwitches.led2 = data.device.led2;
-            }
-          }
-          updateDashboardUI();
+    const currentCounter = snapshot.val();
+    
+    // Jika ini adalah pembacaan pertama saat dasbor dibuka, simpan nilainya tetapi jangan tandai online dulu.
+    // Ini mencegah data detak jantung usang (stale) di Firebase langsung membuat status dasbor menjadi "Connected".
+    if (lastHeartbeatCounter === null) {
+      lastHeartbeatCounter = currentCounter;
+      return;
+    }
+    
+    // Hanya tandai terhubung jika nilai counter berubah (menandakan alat aktif memperbarui data)
+    if (currentCounter !== lastHeartbeatCounter) {
+      lastHeartbeatCounter = currentCounter;
+      lastEspHeartbeat = Date.now();
+      if (!isEspConnected) {
+        isEspConnected = true;
+        if (espStatusText && espStatusDot) {
+          espStatusText.textContent = "Connected";
+          espStatusText.className = "text-xs font-bold text-status-green";
+          espStatusDot.className = "w-2 h-2 rounded-full bg-status-green animate-ping";
         }
-      });
+        addTelegramMessage("SmartTank Bot", "🌐 Perangkat ESP32 terdeteksi Online. Sinkronisasi aktif.");
+        
+        // Pull initial state once upon connecting
+        database.ref().once('value').then((snap) => {
+          if (snap.exists()) {
+            const data = snap.val();
+            if (data.water && data.water.level !== undefined) waterLevel = parseFloat(data.water.level);
+            if (data.device) {
+              if (data.device.pump !== undefined) pumpState = data.device.pump;
+              if (data.device.oled !== undefined) {
+                relayStates.oled = data.device.oled;
+                userSwitches.oled = data.device.oled;
+              }
+              if (data.device.fan !== undefined) {
+                relayStates.fan = data.device.fan;
+                userSwitches.fan = data.device.fan;
+              }
+              if (data.device.led1 !== undefined) {
+                relayStates.led1 = data.device.led1;
+                userSwitches.led1 = data.device.led1;
+              }
+              if (data.device.led2 !== undefined) {
+                relayStates.led2 = data.device.led2;
+                userSwitches.led2 = data.device.led2;
+              }
+            }
+            updateDashboardUI();
+          }
+        });
+      }
     }
   }
 });
@@ -1288,7 +1303,8 @@ database.ref('device/led2').on('value', (snapshot) => {
 
 database.ref('device/voltage').on('value', (snapshot) => {
   if (snapshot.exists() && useFirebaseData) {
-    totalLoadText.textContent = snapshot.val();
+    systemVoltage = parseInt(snapshot.val()) || 0;
+    updateDashboardUI();
   }
 });
 
